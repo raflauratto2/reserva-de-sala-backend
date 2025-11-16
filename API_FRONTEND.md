@@ -61,11 +61,13 @@ O token é obtido através da mutation `login` e deve ser armazenado no frontend
 ```graphql
 mutation {
   criarUsuario(usuario: {
+    nome: "João Silva"
     username: "usuario_teste"
     email: "teste@example.com"
     password: "senha123"
   }) {
     id
+    nome
     username
     email
     createdAt
@@ -84,11 +86,13 @@ const response = await fetch('http://localhost:8000/graphql', {
     query: `
       mutation {
         criarUsuario(usuario: {
+          nome: "João Silva"
           username: "usuario_teste"
           email: "teste@example.com"
           password: "senha123"
         }) {
           id
+          nome
           username
           email
           createdAt
@@ -107,6 +111,7 @@ const data = await response.json();
   "data": {
     "criarUsuario": {
       "id": 1,
+      "nome": "João Silva",
       "username": "usuario_teste",
       "email": "teste@example.com",
       "createdAt": "2024-01-15T10:00:00"
@@ -119,6 +124,14 @@ const data = await response.json();
 - `"Username já está em uso"` - Username já existe
 - `"Email já está em uso"` - Email já existe
 - `"A senha não pode ter mais de 72 caracteres"` - Senha muito longa
+
+**Campos Obrigatórios:**
+- `username` (String) - Nome de usuário único
+- `email` (String) - Email único
+- `password` (String) - Senha do usuário
+
+**Campos Opcionais:**
+- `nome` (String) - Nome completo do usuário (opcional)
 
 ---
 
@@ -578,6 +591,7 @@ query {
 query {
   meuPerfil {
     id
+    nome
     username
     email
     admin
@@ -601,6 +615,7 @@ const response = await fetch('http://localhost:8000/graphql', {
       query {
         meuPerfil {
           id
+          nome
           username
           email
           admin
@@ -620,6 +635,7 @@ const data = await response.json();
   "data": {
     "meuPerfil": {
       "id": 1,
+      "nome": "Administrador",
       "username": "admin",
       "email": "admin@example.com",
       "admin": true,
@@ -1640,6 +1656,7 @@ const data = await response.json();
 ```typescript
 interface UsuarioType {
   id: number;
+  nome?: string | null; // Nome completo do usuário (opcional)
   username: string;
   email: string;
   admin: boolean; // true se o usuário é administrador
@@ -1773,11 +1790,12 @@ async function graphqlRequest(query, variables = {}, token = null) {
 }
 
 // Autenticação
-export async function criarUsuario(username, email, password) {
+export async function criarUsuario(nome, username, email, password) {
   const query = `
     mutation CriarUsuario($usuario: UsuarioInput!) {
       criarUsuario(usuario: $usuario) {
         id
+        nome
         username
         email
         createdAt
@@ -1786,7 +1804,7 @@ export async function criarUsuario(username, email, password) {
   `;
   
   return await graphqlRequest(query, {
-    usuario: { username, email, password }
+    usuario: { nome, username, email, password }
   });
 }
 
@@ -1989,6 +2007,7 @@ export async function obterMeuPerfil(token) {
     query ObterMeuPerfil {
       meuPerfil {
         id
+        nome
         username
         email
         admin
@@ -2261,6 +2280,7 @@ mutation {
 query {
   meuPerfil {
     id
+    nome
     username
     email
     admin

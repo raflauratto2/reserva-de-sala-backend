@@ -15,7 +15,7 @@ from app.models import Usuario
 from app.controllers.auth_controller import AuthController
 
 
-def criar_admin(username: str, email: str, password: str):
+def criar_admin(username: str, email: str, password: str, nome: str = None):
     """Cria um usuário administrador."""
     db: Session = SessionLocal()
     try:
@@ -33,9 +33,10 @@ def criar_admin(username: str, email: str, password: str):
                 return False
         
         # Cria usuário admin
-        admin = AuthController.criar_usuario(db, username, email, password, admin=True)
+        admin = AuthController.criar_usuario(db, username, email, password, nome=nome, admin=True)
         print(f"✅ Usuário administrador criado com sucesso!")
         print(f"   ID: {admin.id}")
+        print(f"   Nome: {admin.nome or 'Não informado'}")
         print(f"   Username: {admin.username}")
         print(f"   Email: {admin.email}")
         print(f"   Admin: {admin.admin}")

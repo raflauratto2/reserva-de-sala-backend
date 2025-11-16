@@ -19,6 +19,7 @@ from datetime import timedelta
 @strawberry.type
 class UsuarioType:
     id: int
+    nome: Optional[str]
     username: str
     email: str
     admin: bool
@@ -100,6 +101,7 @@ class SalaUpdateInput:
 
 @strawberry.input
 class UsuarioInput:
+    nome: Optional[str] = None
     username: str
     email: str
     password: str
@@ -301,6 +303,7 @@ class Query:
         
         return UsuarioType(
             id=current_user.id,
+            nome=current_user.nome,
             username=current_user.username,
             email=current_user.email,
             admin=current_user.admin,
@@ -445,10 +448,11 @@ class Mutation:
                 raise Exception("Email já está em uso")
             
             novo_usuario = AuthController.criar_usuario(
-                db, usuario.username, usuario.email, usuario.password
+                db, usuario.username, usuario.email, usuario.password, nome=usuario.nome
             )
             return UsuarioType(
                 id=novo_usuario.id,
+                nome=novo_usuario.nome,
                 username=novo_usuario.username,
                 email=novo_usuario.email,
                 admin=novo_usuario.admin,

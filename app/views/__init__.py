@@ -4,6 +4,7 @@ from typing import Optional
 
 
 class UsuarioBase(BaseModel):
+    nome: Optional[str] = None
     username: str
     email: EmailStr
 
@@ -14,6 +15,7 @@ class UsuarioCreate(UsuarioBase):
 
 class UsuarioResponse(UsuarioBase):
     id: int
+    admin: Optional[bool] = False
     created_at: datetime
 
     class Config:
