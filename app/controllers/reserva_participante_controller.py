@@ -105,7 +105,9 @@ class ReservaParticipanteController:
         db: Session,
         usuario_id: int,
         apenas_nao_notificadas: bool = False,
-        apenas_nao_vistas: bool = False
+        apenas_nao_vistas: bool = False,
+        skip: int = 0,
+        limit: int = 100
     ) -> List[ReservaParticipante]:
         """
         Lista todas as reservas em que o usuário é participante.
@@ -126,7 +128,7 @@ class ReservaParticipanteController:
         if apenas_nao_vistas:
             query = query.filter(ReservaParticipante.visto == False)
         
-        return query.order_by(ReservaParticipante.created_at.desc()).all()
+        return query.order_by(ReservaParticipante.created_at.desc()).offset(skip).limit(limit).all()
     
     @staticmethod
     def contar_reservas_nao_vistas(db: Session, usuario_id: int) -> int:
@@ -179,7 +181,7 @@ class ReservaParticipanteController:
         return True
     
     @staticmethod
-    def listar_usuarios_nao_admin(db: Session) -> List[Usuario]:
+    def listar_usuarios_nao_admin(db: Session, skip: int = 0, limit: int = 100) -> List[Usuario]:
         """Lista todos os usuários que não são administradores."""
-        return db.query(Usuario).filter(Usuario.admin == False).all()
+        return db.query(Usuario).filter(Usuario.admin == False).offset(skip).limit(limit).all()
 

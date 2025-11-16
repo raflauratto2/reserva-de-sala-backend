@@ -3,7 +3,7 @@ from sqlalchemy import and_, or_, func
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Tuple
 
-from app.models import Reserva
+from app.models import Reserva, ReservaParticipante
 from app.views import ReservaCreate, ReservaUpdate, ReservaResponse
 from app.exceptions import ConflitoHorarioException
 
@@ -167,7 +167,9 @@ class ReservaController:
     def listar_por_sala_e_data(
         db: Session, 
         sala_id: int, 
-        data: date
+        data: date,
+        skip: int = 0,
+        limit: int = 100
     ) -> List[Reserva]:
         """Lista todas as reservas de uma sala em uma data específica."""
         inicio_dia = datetime.combine(data, datetime.min.time())
@@ -177,7 +179,7 @@ class ReservaController:
             Reserva.sala_id == sala_id,
             Reserva.data_hora_inicio >= inicio_dia,
             Reserva.data_hora_inicio < fim_dia + timedelta(days=1)
-        ).order_by(Reserva.data_hora_inicio).all()
+        ).order_by(Reserva.data_hora_inicio).offset(skip).limit(limit).all()
 
     @staticmethod
     def obter_horarios_disponiveis(
@@ -316,6 +318,72 @@ class ReservaController:
             hora_atual = hora_fim_slot
         
         return horas_disponiveis
+    
+    @staticmethod
+    def listar_historico_usuario(
+        db: Session,
+        usuario_id: int,
+        apenas_futuras: bool = False,
+        apenas_passadas: bool = False,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Tuple[Reserva, bool]]:
+        """
+        Lista todas as reservas do usuário (como responsável ou participante).
+        Retorna uma lista de tuplas (Reserva, is_responsavel) onde:
+        - is_responsavel=True se o usuário é o responsável
+        - is_responsavel=False se o usuário é apenas participante
+        
+        Parâmetros:
+        - apenas_futuras: Se True, retorna apenas reservas futuras
+        - apenas_passadas: Se True, retorna apenas reservas passadas
+        """
+        agora = datetime.utcnow()
+        
+        # Busca reservas onde o usuário é responsável
+        query_responsavel = db.query(Reserva).options(
+            joinedload(Reserva.responsavel),
+            joinedload(Reserva.sala_rel)
+        ).filter(Reserva.responsavel_id == usuario_id)
+        
+        # Busca reservas onde o usuário é participante
+        query_participante = db.query(Reserva).options(
+            joinedload(Reserva.responsavel),
+            joinedload(Reserva.sala_rel)
+        ).join(ReservaParticipante).filter(
+            ReservaParticipante.usuario_id == usuario_id
+        )
+        
+        # Aplica filtros de data se necessário
+        if apenas_futuras:
+            query_responsavel = query_responsavel.filter(Reserva.data_hora_inicio > agora)
+            query_participante = query_participante.filter(Reserva.data_hora_inicio > agora)
+        elif apenas_passadas:
+            query_responsavel = query_responsavel.filter(Reserva.data_hora_fim < agora)
+            query_participante = query_participante.filter(Reserva.data_hora_fim < agora)
+        
+        # Busca as reservas
+        reservas_responsavel = query_responsavel.all()
+        reservas_participante = query_participante.all()
+        
+        # Cria um dicionário para evitar duplicatas (se o usuário for responsável e participante)
+        reservas_dict = {}
+        
+        # Adiciona reservas como responsável
+        for r in reservas_responsavel:
+            reservas_dict[r.id] = (r, True)
+        
+        # Adiciona reservas como participante (não sobrescreve se já for responsável)
+        for r in reservas_participante:
+            if r.id not in reservas_dict:
+                reservas_dict[r.id] = (r, False)
+        
+        # Converte para lista e ordena por data
+        resultado = list(reservas_dict.values())
+        resultado.sort(key=lambda x: x[0].data_hora_inicio, reverse=True)
+        
+        # Aplica paginação
+        return resultado[skip:skip + limit]
 
 
 

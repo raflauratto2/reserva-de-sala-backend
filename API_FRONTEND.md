@@ -49,9 +49,55 @@ O token é obtido através da mutation `login` e deve ser armazenado no frontend
 
 ---
 
-## 1. Autenticação
+## 1. Paginação
 
-### 1.1. Registrar Usuário
+Todas as rotas de listagem suportam paginação através dos parâmetros `skip` e `limit`:
+
+- **`skip`** (opcional, padrão: 0) - Número de registros para pular. Use para navegar entre páginas.
+- **`limit`** (opcional, padrão: 100) - Número máximo de registros a retornar por página.
+
+**Exemplo de uso:**
+```graphql
+# Primeira página (10 primeiros registros)
+query {
+  reservas(skip: 0, limit: 10) {
+    id
+    dataHoraInicio
+  }
+}
+
+# Segunda página (próximos 10 registros)
+query {
+  reservas(skip: 10, limit: 10) {
+    id
+    dataHoraInicio
+  }
+}
+
+# Terceira página (próximos 10 registros)
+query {
+  reservas(skip: 20, limit: 10) {
+    id
+    dataHoraInicio
+  }
+}
+```
+
+**Rotas com paginação:**
+- `reservas(skip, limit)` - Lista todas as reservas
+- `salas(skip, limit, apenasAtivas)` - Lista todas as salas
+- `usuarios(skip, limit)` - Lista todos os usuários (Admin)
+- `minhasSalas(skip, limit)` - Lista salas criadas pelo usuário
+- `reservasPorSala(salaId, data, skip, limit)` - Lista reservas de uma sala em uma data
+- `minhasReservasConvidadas(apenasNaoVistas, skip, limit)` - Lista reservas convidadas
+- `usuariosNaoAdmin(skip, limit)` - Lista usuários não-admin
+- `meuHistorico(apenasFuturas, apenasPassadas, skip, limit)` - Lista histórico completo de reuniões do usuário
+
+---
+
+## 2. Autenticação
+
+### 2.1. Registrar Usuário
 
 **Mutation:** `criarUsuario`
 
@@ -198,9 +244,9 @@ const data = await response.json();
 
 ---
 
-## 2. Queries (Consultas)
+## 3. Queries (Consultas)
 
-### 2.1. Listar Reservas
+### 3.1. Listar Reservas
 
 **Query:** `reservas`
 
@@ -301,7 +347,7 @@ const data = await response.json();
 
 ---
 
-### 2.2. Obter Reserva por ID
+### 3.2. Obter Reserva por ID
 
 **Query:** `reserva`
 
@@ -401,7 +447,7 @@ const data = await response.json();
 
 ---
 
-### 2.3. Listar Salas
+### 3.3. Listar Salas
 
 **Query:** `salas`
 
@@ -484,7 +530,7 @@ const data = await response.json();
 
 ---
 
-### 2.4. Obter Sala por ID
+### 3.4. Obter Sala por ID
 
 **Query:** `sala`
 
@@ -572,7 +618,7 @@ const data = await response.json();
 
 ---
 
-### 2.5. Listar Minhas Salas
+### 3.5. Listar Minhas Salas
 
 **Query:** `minhasSalas`
 
@@ -601,7 +647,7 @@ query {
 
 ---
 
-### 2.6. Obter Meu Perfil
+### 3.6. Obter Meu Perfil
 
 **Query:** `meuPerfil`
 
@@ -727,7 +773,7 @@ const data = await response.json();
 
 ---
 
-### 2.7. Listar Reservas de uma Sala em uma Data
+### 3.7. Listar Reservas de uma Sala em uma Data
 
 **Query:** `reservasPorSala`
 
@@ -736,11 +782,13 @@ const data = await response.json();
 **Parâmetros:**
 - `salaId` (obrigatório) - ID da sala
 - `data` (obrigatório) - Data no formato "YYYY-MM-DD"
+- `skip` (opcional, padrão: 0) - Número de registros para pular (paginação)
+- `limit` (opcional, padrão: 100) - Número máximo de registros a retornar
 
 **Request:**
 ```graphql
 query {
-  reservasPorSala(salaId: 1, data: "2024-01-15") {
+  reservasPorSala(salaId: 1, data: "2024-01-15", skip: 0, limit: 100) {
     id
     local
     sala
@@ -770,7 +818,7 @@ const response = await fetch('http://localhost:8000/graphql', {
   body: JSON.stringify({
     query: `
       query {
-        reservasPorSala(salaId: 1, data: "2024-01-15") {
+        reservasPorSala(salaId: 1, data: "2024-01-15", skip: 0, limit: 100) {
           id
           local
           sala
@@ -986,7 +1034,7 @@ const data = await response.json();
 
 ---
 
-### 2.10. Listar Usuários Não-Admin (Para Seleção de Participantes)
+### 3.10. Listar Usuários Não-Admin (Para Seleção de Participantes)
 
 **Query:** `usuariosNaoAdmin`
 
@@ -994,10 +1042,14 @@ const data = await response.json();
 
 **Descrição:** Lista todos os usuários que não são administradores. Útil para selecionar participantes de uma reserva.
 
+**Parâmetros:**
+- `skip` (opcional, padrão: 0) - Número de registros para pular (paginação)
+- `limit` (opcional, padrão: 100) - Número máximo de registros a retornar
+
 **Request:**
 ```graphql
 query {
-  usuariosNaoAdmin {
+  usuariosNaoAdmin(skip: 0, limit: 100) {
     id
     nome
     username
@@ -1019,7 +1071,7 @@ const response = await fetch('http://localhost:8000/graphql', {
   body: JSON.stringify({
     query: `
       query {
-        usuariosNaoAdmin {
+        usuariosNaoAdmin(skip: 0, limit: 100) {
           id
           nome
           username
@@ -1059,7 +1111,7 @@ const data = await response.json();
 
 ---
 
-### 2.11. Listar Participantes de uma Reserva
+### 3.11. Listar Participantes de uma Reserva
 
 **Query:** `participantesReserva`
 
@@ -1146,7 +1198,7 @@ const data = await response.json();
 
 ---
 
-### 2.12. Listar Minhas Reservas Convidadas
+### 3.12. Listar Minhas Reservas Convidadas
 
 **Query:** `minhasReservasConvidadas`
 
@@ -1157,11 +1209,13 @@ const data = await response.json();
 **Parâmetros:**
 - `apenasNaoNotificadas` (opcional, padrão: false) - Se true, retorna apenas reservas não notificadas
 - `apenasNaoVistas` (opcional, padrão: false) - Se true, retorna apenas reservas não vistas (útil para notificações no sino)
+- `skip` (opcional, padrão: 0) - Número de registros para pular (paginação)
+- `limit` (opcional, padrão: 100) - Número máximo de registros a retornar
 
 **Request:**
 ```graphql
 query {
-  minhasReservasConvidadas(apenasNaoVistas: true) {
+  minhasReservasConvidadas(apenasNaoVistas: true, skip: 0, limit: 100) {
     id
     reservaId
     usuarioId
@@ -1283,7 +1337,7 @@ const data = await response.json();
 
 ---
 
-### 2.13. Contar Reservas Não Vistas
+### 3.13. Contar Reservas Não Vistas
 
 **Query:** `contarReservasNaoVistas`
 
@@ -1333,7 +1387,7 @@ const data = await response.json();
 
 ---
 
-### 2.14. Verificar Disponibilidade de um Horário Específico
+### 3.14. Verificar Disponibilidade de um Horário Específico
 
 **Query:** `verificarDisponibilidade`
 
@@ -1399,11 +1453,218 @@ const data = await response.json();
 }
 ```
 
+### 3.17. Meu Histórico de Reuniões
+
+**Query:** `meuHistorico`
+
+**Autenticação:** Requerida
+
+**Descrição:** Lista todas as reuniões (reservas) nas quais o usuário participou ou vai participar. Inclui reservas onde o usuário é responsável e onde é participante.
+
+**Parâmetros:**
+- `apenasFuturas` (opcional, padrão: false) - Se true, retorna apenas reservas futuras
+- `apenasPassadas` (opcional, padrão: false) - Se true, retorna apenas reservas passadas
+- `skip` (opcional, padrão: 0) - Número de registros para pular (paginação)
+- `limit` (opcional, padrão: 100) - Número máximo de registros a retornar
+
+**Request:**
+```graphql
+query {
+  meuHistorico(apenasFuturas: false, apenasPassadas: false, skip: 0, limit: 100) {
+    reserva {
+      id
+      salaId
+      dataHoraInicio
+      dataHoraFim
+      responsavel {
+        id
+        nome
+        username
+        email
+      }
+      salaRel {
+        id
+        nome
+        local
+        capacidade
+        descricao
+      }
+      linkMeet
+      cafeQuantidade
+      cafeDescricao
+    }
+    souResponsavel
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        meuHistorico(apenasFuturas: false, skip: 0, limit: 50) {
+          reserva {
+            id
+            salaId
+            dataHoraInicio
+            dataHoraFim
+            responsavel {
+              id
+              nome
+              username
+            }
+            salaRel {
+              id
+              nome
+              local
+            }
+            linkMeet
+          }
+          souResponsavel
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "meuHistorico": [
+      {
+        "reserva": {
+          "id": 1,
+          "salaId": 1,
+          "dataHoraInicio": "2024-01-20T14:00:00",
+          "dataHoraFim": "2024-01-20T15:00:00",
+          "responsavel": {
+            "id": 1,
+            "nome": "João Silva",
+            "username": "joao",
+            "email": "joao@example.com"
+          },
+          "salaRel": {
+            "id": 1,
+            "nome": "Sala de Reuniões 1",
+            "local": "Edifício A",
+            "capacidade": 10,
+            "descricao": "Sala com projetor"
+          },
+          "linkMeet": "https://meet.google.com/abc-defg-hij",
+          "cafeQuantidade": 10,
+          "cafeDescricao": "Café e água"
+        },
+        "souResponsavel": true
+      },
+      {
+        "reserva": {
+          "id": 2,
+          "salaId": 2,
+          "dataHoraInicio": "2024-01-21T10:00:00",
+          "dataHoraFim": "2024-01-21T11:00:00",
+          "responsavel": {
+            "id": 2,
+            "nome": "Maria Santos",
+            "username": "maria",
+            "email": "maria@example.com"
+          },
+          "salaRel": {
+            "id": 2,
+            "nome": "Sala de Reuniões 2",
+            "local": "Edifício B",
+            "capacidade": 15,
+            "descricao": "Sala grande"
+          },
+          "linkMeet": null,
+          "cafeQuantidade": null,
+          "cafeDescricao": null
+        },
+        "souResponsavel": false
+      }
+    ]
+  }
+}
+```
+
+**Exemplos de Uso:**
+
+**1. Buscar todas as reuniões (passadas e futuras):**
+```graphql
+query {
+  meuHistorico {
+    reserva {
+      id
+      dataHoraInicio
+      dataHoraFim
+      salaRel {
+        nome
+        local
+      }
+    }
+    souResponsavel
+  }
+}
+```
+
+**2. Buscar apenas reuniões futuras:**
+```graphql
+query {
+  meuHistorico(apenasFuturas: true) {
+    reserva {
+      id
+      dataHoraInicio
+      dataHoraFim
+      salaRel {
+        nome
+      }
+    }
+    souResponsavel
+  }
+}
+```
+
+**3. Buscar apenas reuniões passadas (histórico):**
+```graphql
+query {
+  meuHistorico(apenasPassadas: true) {
+    reserva {
+      id
+      dataHoraInicio
+      dataHoraFim
+      salaRel {
+        nome
+      }
+    }
+    souResponsavel
+  }
+}
+```
+
+**Notas:**
+- O campo `souResponsavel` indica se o usuário é o responsável pela reserva (`true`) ou apenas um participante (`false`)
+- Se o usuário for responsável e também participante da mesma reserva, `souResponsavel` será `true`
+- As reservas são ordenadas por data (mais recentes primeiro)
+- Use `apenasFuturas: true` para mostrar apenas próximas reuniões
+- Use `apenasPassadas: true` para mostrar apenas o histórico de reuniões já realizadas
+
 ---
 
-## 3. Mutations (Modificações)
+## 4. Mutations (Modificações)
 
-### 3.1. Atualizar Perfil do Usuário
+### 4.1. Atualizar Perfil do Usuário
 
 **Mutation:** `atualizarPerfil`
 
@@ -1496,7 +1757,7 @@ const data = await response.json();
 
 ---
 
-### 3.2. Criar Reserva
+### 4.2. Criar Reserva
 
 **Mutation:** `criarReserva`
 
@@ -1646,7 +1907,7 @@ const data = await response.json();
 
 ---
 
-### 3.3. Atualizar Reserva
+### 4.3. Atualizar Reserva
 
 **Mutation:** `atualizarReserva`
 
@@ -1778,7 +2039,7 @@ const data = await response.json();
 
 ---
 
-### 3.4. Deletar Reserva
+### 4.4. Deletar Reserva
 
 **Mutation:** `deletarReserva`
 
@@ -1839,7 +2100,7 @@ const data = await response.json();
 
 ---
 
-### 3.5. Criar Sala
+### 4.5. Criar Sala
 
 **Mutation:** `criarSala`
 
@@ -1942,7 +2203,7 @@ const data = await response.json();
 
 ---
 
-### 3.6. Atualizar Sala
+### 4.6. Atualizar Sala
 
 **Mutation:** `atualizarSala`
 
@@ -2061,7 +2322,7 @@ const data = await response.json();
 
 ---
 
-### 3.7. Deletar Sala
+### 4.7. Deletar Sala
 
 **Mutation:** `deletarSala`
 
@@ -2125,7 +2386,7 @@ const data = await response.json();
 
 ---
 
-### 3.8. Adicionar Participante a uma Reserva
+### 4.8. Adicionar Participante a uma Reserva
 
 **Mutation:** `adicionarParticipante`
 
@@ -2218,7 +2479,7 @@ const data = await response.json();
 
 ---
 
-### 3.9. Remover Participante de uma Reserva
+### 4.9. Remover Participante de uma Reserva
 
 **Mutation:** `removerParticipante`
 
@@ -2271,7 +2532,7 @@ const data = await response.json();
 
 ---
 
-### 3.10. Marcar Reserva como Notificada
+### 4.10. Marcar Reserva como Notificada
 
 **Mutation:** `marcarReservaComoNotificada`
 
@@ -2326,7 +2587,7 @@ const data = await response.json();
 
 ---
 
-### 3.11. Marcar Reserva como Vista
+### 4.11. Marcar Reserva como Vista
 
 **Mutation:** `marcarReservaComoVista`
 
@@ -2384,7 +2645,7 @@ const data = await response.json();
 
 ---
 
-### 3.12. Criar Usuário (Admin)
+### 4.12. Criar Usuário (Admin)
 
 **Mutation:** `criarUsuarioAdmin`
 
@@ -2484,7 +2745,7 @@ const data = await response.json();
 
 ---
 
-### 3.13. Atualizar Usuário (Admin)
+### 4.13. Atualizar Usuário (Admin)
 
 **Mutation:** `atualizarUsuarioAdmin`
 
@@ -2585,7 +2846,7 @@ const data = await response.json();
 
 ---
 
-### 3.14. Deletar Usuário (Admin)
+### 4.14. Deletar Usuário (Admin)
 
 **Mutation:** `deletarUsuario`
 
@@ -2641,7 +2902,7 @@ const data = await response.json();
 
 ---
 
-### 2.15. Listar Usuários (Admin)
+### 3.15. Listar Usuários (Admin)
 
 **Query:** `usuarios`
 
@@ -2731,7 +2992,7 @@ const data = await response.json();
 
 ---
 
-### 2.16. Obter Usuário por ID (Admin)
+### 3.16. Obter Usuário por ID (Admin)
 
 **Query:** `usuario`
 
@@ -2817,9 +3078,9 @@ const data = await response.json();
 
 ---
 
-## 4. Estrutura de Dados
+## 5. Estrutura de Dados
 
-### 4.1. Tipo: UsuarioType
+### 5.1. Tipo: UsuarioType
 
 ```typescript
 interface UsuarioType {
@@ -2832,7 +3093,7 @@ interface UsuarioType {
 }
 ```
 
-### 4.2. Tipo: ReservaType
+### 5.2. Tipo: ReservaType
 
 ```typescript
 interface ResponsavelType {
@@ -2860,7 +3121,7 @@ interface ReservaType {
 }
 ```
 
-### 4.3. Tipo: SalaType
+### 5.3. Tipo: SalaType
 
 ```typescript
 interface SalaType {
@@ -2876,7 +3137,20 @@ interface SalaType {
 }
 ```
 
-### 4.4. Tipo: ReservaParticipanteType
+### 5.4. Tipo: ReservaHistoricoType
+
+```typescript
+interface ReservaHistoricoType {
+  reserva: ReservaType;  // Dados completos da reserva
+  souResponsavel: boolean;  // True se o usuário é o responsável, False se é apenas participante
+}
+```
+
+**Uso:** Retornado pela query `meuHistorico` para indicar todas as reuniões do usuário e seu papel em cada uma.
+
+---
+
+### 5.5. Tipo: ReservaParticipanteType
 
 ```typescript
 interface ReservaParticipanteType {
@@ -2891,7 +3165,7 @@ interface ReservaParticipanteType {
 }
 ```
 
-### 4.5. Tipo: HorarioDisponivelType
+### 5.6. Tipo: HorarioDisponivelType
 
 ```typescript
 interface HorarioDisponivelType {
@@ -2900,7 +3174,7 @@ interface HorarioDisponivelType {
 }
 ```
 
-### 4.6. Tipo: TokenType
+### 5.7. Tipo: TokenType
 
 ```typescript
 interface TokenType {
@@ -2911,9 +3185,9 @@ interface TokenType {
 
 ---
 
-## 5. Tratamento de Erros
+## 6. Tratamento de Erros
 
-### 5.1. Estrutura de Erro GraphQL
+### 6.1. Estrutura de Erro GraphQL
 
 ```json
 {
@@ -2933,7 +3207,7 @@ interface TokenType {
 }
 ```
 
-### 5.2. Códigos de Erro Comuns
+### 6.2. Códigos de Erro Comuns
 
 | Erro | Descrição | Solução |
 |------|-----------|---------|
@@ -2949,7 +3223,7 @@ interface TokenType {
 
 ---
 
-## 6. Exemplo Completo de Integração (React)
+## 7. Exemplo Completo de Integração (React)
 
 ```javascript
 // api.js
@@ -3248,10 +3522,10 @@ export async function atualizarPerfil(token, usuario) {
 }
 
 // Participantes de Reserva
-export async function listarUsuariosNaoAdmin(token) {
+export async function listarUsuariosNaoAdmin(token, skip = 0, limit = 100) {
   const query = `
-    query ListarUsuariosNaoAdmin {
-      usuariosNaoAdmin {
+    query ListarUsuariosNaoAdmin($skip: Int!, $limit: Int!) {
+      usuariosNaoAdmin(skip: $skip, limit: $limit) {
         id
         nome
         username
@@ -3260,7 +3534,7 @@ export async function listarUsuariosNaoAdmin(token) {
     }
   `;
   
-  return await graphqlRequest(query, {}, token);
+  return await graphqlRequest(query, { skip, limit }, token);
 }
 
 export async function listarParticipantesReserva(token, reservaId) {
@@ -3285,10 +3559,10 @@ export async function listarParticipantesReserva(token, reservaId) {
   return await graphqlRequest(query, { reservaId }, token);
 }
 
-export async function listarMinhasReservasConvidadas(token, apenasNaoNotificadas = false, apenasNaoVistas = false) {
+export async function listarMinhasReservasConvidadas(token, apenasNaoNotificadas = false, apenasNaoVistas = false, skip = 0, limit = 100) {
   const query = `
-    query ListarMinhasReservasConvidadas($apenasNaoNotificadas: Boolean!, $apenasNaoVistas: Boolean!) {
-      minhasReservasConvidadas(apenasNaoNotificadas: $apenasNaoNotificadas, apenasNaoVistas: $apenasNaoVistas) {
+    query ListarMinhasReservasConvidadas($apenasNaoNotificadas: Boolean!, $apenasNaoVistas: Boolean!, $skip: Int!, $limit: Int!) {
+      minhasReservasConvidadas(apenasNaoNotificadas: $apenasNaoNotificadas, apenasNaoVistas: $apenasNaoVistas, skip: $skip, limit: $limit) {
         id
         reservaId
         usuarioId
@@ -3318,7 +3592,7 @@ export async function listarMinhasReservasConvidadas(token, apenasNaoNotificadas
     }
   `;
   
-  return await graphqlRequest(query, { apenasNaoNotificadas, apenasNaoVistas }, token);
+  return await graphqlRequest(query, { apenasNaoNotificadas, apenasNaoVistas, skip, limit }, token);
 }
 
 export async function contarReservasNaoVistas(token) {
@@ -3329,6 +3603,42 @@ export async function contarReservasNaoVistas(token) {
   `;
   
   return await graphqlRequest(query, {}, token);
+}
+
+export async function meuHistorico(token, apenasFuturas = false, apenasPassadas = false, skip = 0, limit = 100) {
+  const query = `
+    query MeuHistorico($apenasFuturas: Boolean!, $apenasPassadas: Boolean!, $skip: Int!, $limit: Int!) {
+      meuHistorico(apenasFuturas: $apenasFuturas, apenasPassadas: $apenasPassadas, skip: $skip, limit: $limit) {
+        reserva {
+          id
+          salaId
+          dataHoraInicio
+          dataHoraFim
+          responsavel {
+            id
+            nome
+            username
+            email
+          }
+          salaRel {
+            id
+            nome
+            local
+            capacidade
+            descricao
+          }
+          linkMeet
+          cafeQuantidade
+          cafeDescricao
+          createdAt
+          updatedAt
+        }
+        souResponsavel
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { apenasFuturas, apenasPassadas, skip, limit }, token);
 }
 
 export async function adicionarParticipante(token, reservaId, usuarioId) {
@@ -3463,10 +3773,10 @@ export async function deletarUsuario(token, usuarioId) {
 }
 
 // Disponibilidade
-export async function listarReservasPorSala(token, salaId, data) {
+export async function listarReservasPorSala(token, salaId, data, skip = 0, limit = 100) {
   const query = `
-    query ListarReservasPorSala($salaId: Int!, $data: String!) {
-      reservasPorSala(salaId: $salaId, data: $data) {
+    query ListarReservasPorSala($salaId: Int!, $data: String!, $skip: Int!, $limit: Int!) {
+      reservasPorSala(salaId: $salaId, data: $data, skip: $skip, limit: $limit) {
         id
         local
         sala
@@ -3488,7 +3798,7 @@ export async function listarReservasPorSala(token, salaId, data) {
     }
   `;
   
-  return await graphqlRequest(query, { salaId, data }, token);
+  return await graphqlRequest(query, { salaId, data, skip, limit }, token);
 }
 
 export async function obterHorariosDisponiveis(token, salaId, data, horaInicio = "08:00:00", horaFim = "18:00:00") {
@@ -3565,7 +3875,7 @@ export async function deletarReserva(token, reservaId) {
 
 ---
 
-## 7. Formato de Data/Hora
+## 8. Formato de Data/Hora
 
 Todas as datas devem ser enviadas no formato **ISO 8601**:
 
@@ -3585,7 +3895,7 @@ const dataHora = new Date().toISOString().slice(0, 19); // Remove os milissegund
 
 ---
 
-## 8. Validações Importantes
+## 9. Validações Importantes
 
 1. **Conflito de Horário:** O sistema valida automaticamente se já existe uma reserva para a mesma sala no mesmo período
 2. **Data de Fim > Data de Início:** A data/hora de fim deve ser sempre maior que a data/hora de início
@@ -3615,9 +3925,9 @@ python create_admin.py admin admin@example.com senha123
 
 ---
 
-## 9. Casos de Uso e Fluxos Completos
+## 10. Casos de Uso e Fluxos Completos
 
-### 9.1. Fluxo Completo: Selecionar Sala e Reservar por Hora
+### 10.1. Fluxo Completo: Selecionar Sala e Reservar por Hora
 
 **Este é o fluxo principal para reservar uma sala:**
 
@@ -3665,7 +3975,7 @@ mutation {
 
 ---
 
-### 9.2. Fluxo Alternativo: Criar Sala e Fazer Reserva
+### 10.2. Fluxo Alternativo: Criar Sala e Fazer Reserva
 
 **Passo 1: Criar uma sala**
 ```graphql
@@ -3728,7 +4038,7 @@ mutation {
 }
 ```
 
-### 9.3. Verificar se Usuário é Admin
+### 10.3. Verificar se Usuário é Admin
 
 **Verificar perfil do usuário:**
 ```graphql
@@ -3772,12 +4082,12 @@ useEffect(() => {
 
 ---
 
-### 9.4. Consultar Agenda de uma Sala
+### 10.4. Consultar Agenda de uma Sala
 
 **Ver todas as reservas de uma sala em um dia:**
 ```graphql
 query {
-  reservasPorSala(salaId: 1, data: "2024-01-20") {
+  reservasPorSala(salaId: 1, data: "2024-01-20", skip: 0, limit: 100) {
     id
     dataHoraInicio
     dataHoraFim
@@ -3797,7 +4107,7 @@ query {
 }
 ```
 
-### 9.6. Gerenciar Minhas Salas (Apenas Admin)
+### 10.5. Gerenciar Minhas Salas (Apenas Admin)
 
 **Listar minhas salas:**
 ```graphql
@@ -3828,7 +4138,7 @@ mutation {
 }
 ```
 
-### 9.4. Exemplo Prático: Componente React para Seleção de Sala e Horário
+### 10.6. Exemplo Prático: Componente React para Seleção de Sala e Horário
 
 **Fluxo:** Usuário seleciona uma sala → Sistema mostra apenas as horas disponíveis → Usuário seleciona uma hora → Sistema cria reserva de 1 hora
 
@@ -4109,7 +4419,7 @@ export default ReservarSala;
 }
 ```
 
-### 9.6. Exemplo: Calendário de Disponibilidade
+### 10.7. Exemplo: Calendário de Disponibilidade
 
 ```javascript
 async function obterCalendarioDisponibilidade(salaId, mes, ano) {
@@ -4140,9 +4450,9 @@ async function obterCalendarioDisponibilidade(salaId, mes, ano) {
 
 ---
 
-## 10. Boas Práticas e Dicas
+## 11. Boas Práticas e Dicas
 
-### 10.1. Gerenciamento de Token
+### 11.1. Gerenciamento de Token
 
 - **Armazenar token:** Use `localStorage` ou `sessionStorage` para persistir o token
 - **Renovação:** O token expira em 30 minutos (padrão). Implemente renovação automática ou redirecione para login
@@ -4298,7 +4608,7 @@ src/
 
 ---
 
-## 11. Testando no GraphiQL
+## 12. Testando no GraphiQL
 
 Acesse `http://localhost:8000/graphql` no navegador para usar o GraphiQL interativo.
 

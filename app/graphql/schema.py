@@ -134,6 +134,13 @@ class ReservaType:
     updated_at: datetime
 
 
+@strawberry.type
+class ReservaHistoricoType:
+    """Tipo para histórico de reservas do usuário."""
+    reserva: ReservaType
+    sou_responsavel: bool  # True se o usuário é o responsável, False se é apenas participante
+
+
 @strawberry.input
 class ReservaInput:
     local: Optional[str] = None
@@ -468,13 +475,18 @@ class Query:
             db.close()
     
     @strawberry.field
-    def usuarios_nao_admin(self, info) -> List[ResponsavelType]:
+    def usuarios_nao_admin(
+        self,
+        info,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[ResponsavelType]:
         """Lista todos os usuários que não são administradores (para seleção de participantes)."""
         get_current_user_from_context(info)  # Valida autenticação
         
         db = SessionLocal()
         try:
-            usuarios = ReservaParticipanteController.listar_usuarios_nao_admin(db)
+            usuarios = ReservaParticipanteController.listar_usuarios_nao_admin(db, skip=skip, limit=limit)
             return [
                 ResponsavelType(
                     id=u.id,
@@ -516,7 +528,9 @@ class Query:
         self,
         info,
         apenas_nao_notificadas: bool = False,
-        apenas_nao_vistas: bool = False
+        apenas_nao_vistas: bool = False,
+        skip: int = 0,
+        limit: int = 100
     ) -> List[ReservaParticipanteType]:
         """
         Lista todas as reservas em que o usuário atual foi convidado como participante.
@@ -528,7 +542,7 @@ class Query:
         db = SessionLocal()
         try:
             participantes = ReservaParticipanteController.listar_reservas_do_usuario(
-                db, current_user.id, apenas_nao_notificadas, apenas_nao_vistas
+                db, current_user.id, apenas_nao_notificadas, apenas_nao_vistas, skip=skip, limit=limit
             )
             return [
                 ReservaParticipanteType(
@@ -561,11 +575,82 @@ class Query:
             db.close()
     
     @strawberry.field
+    def meu_historico(
+        self,
+        info,
+        apenas_futuras: bool = False,
+        apenas_passadas: bool = False,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[ReservaHistoricoType]:
+        """
+        Lista todas as reuniões (reservas) nas quais o usuário participou ou vai participar.
+        Inclui reservas onde o usuário é responsável e onde é participante.
+        
+        Parâmetros:
+        - apenas_futuras: Se True, retorna apenas reservas futuras
+        - apenas_passadas: Se True, retorna apenas reservas passadas
+        - skip: Número de registros para pular (paginação)
+        - limit: Número máximo de registros a retornar
+        """
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            historico = ReservaController.listar_historico_usuario(
+                db, current_user.id, apenas_futuras, apenas_passadas, skip, limit
+            )
+            
+            resultado = []
+            for reserva, is_responsavel in historico:
+                sala_type = None
+                if reserva.sala_rel:
+                    sala_type = SalaType(
+                        id=reserva.sala_rel.id,
+                        nome=reserva.sala_rel.nome,
+                        local=reserva.sala_rel.local,
+                        capacidade=reserva.sala_rel.capacidade,
+                        descricao=reserva.sala_rel.descricao,
+                        criador_id=reserva.sala_rel.criador_id,
+                        ativa=reserva.sala_rel.ativa,
+                        created_at=reserva.sala_rel.created_at,
+                        updated_at=reserva.sala_rel.updated_at
+                    )
+                
+                reserva_type = ReservaType(
+                    id=reserva.id,
+                    local=reserva.local,
+                    sala=reserva.sala,
+                    sala_id=reserva.sala_id,
+                    data_hora_inicio=reserva.data_hora_inicio,
+                    data_hora_fim=reserva.data_hora_fim,
+                    responsavel_id=reserva.responsavel_id,
+                    responsavel=criar_responsavel_type(reserva.responsavel),
+                    cafe_quantidade=reserva.cafe_quantidade,
+                    cafe_descricao=reserva.cafe_descricao,
+                    link_meet=reserva.link_meet,
+                    sala_rel=sala_type,
+                    created_at=reserva.created_at,
+                    updated_at=reserva.updated_at
+                )
+                
+                resultado.append(ReservaHistoricoType(
+                    reserva=reserva_type,
+                    sou_responsavel=is_responsavel
+                ))
+            
+            return resultado
+        finally:
+            db.close()
+    
+    @strawberry.field
     def reservas_por_sala(
         self,
         info,
         sala_id: int,
-        data: str  # Formato: "YYYY-MM-DD"
+        data: str,  # Formato: "YYYY-MM-DD"
+        skip: int = 0,
+        limit: int = 100
     ) -> List[ReservaType]:
         """Lista todas as reservas de uma sala em uma data específica."""
         get_current_user_from_context(info)  # Valida autenticação
@@ -574,7 +659,7 @@ class Query:
         try:
             from datetime import date as date_type
             data_obj = datetime.strptime(data, "%Y-%m-%d").date()
-            reservas = ReservaController.listar_por_sala_e_data(db, sala_id, data_obj)
+            reservas = ReservaController.listar_por_sala_e_data(db, sala_id, data_obj, skip=skip, limit=limit)
             return [
                 ReservaType(
                     id=r.id,
