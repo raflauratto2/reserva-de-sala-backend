@@ -2384,6 +2384,439 @@ const data = await response.json();
 
 ---
 
+### 3.12. Criar Usuário (Admin)
+
+**Mutation:** `criarUsuarioAdmin`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas administradores podem criar usuários.
+
+**Descrição:** Cria um novo usuário. Permite definir se o usuário será admin ou não.
+
+**Request:**
+```graphql
+mutation {
+  criarUsuarioAdmin(usuario: {
+    nome: "João Silva"
+    username: "joao"
+    email: "joao@example.com"
+    password: "senha123"
+    admin: false
+  }) {
+    id
+    nome
+    username
+    email
+    admin
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        criarUsuarioAdmin(usuario: {
+          nome: "João Silva"
+          username: "joao"
+          email: "joao@example.com"
+          password: "senha123"
+          admin: false
+        }) {
+          id
+          nome
+          username
+          email
+          admin
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "criarUsuarioAdmin": {
+      "id": 2,
+      "nome": "João Silva",
+      "username": "joao",
+      "email": "joao@example.com",
+      "admin": false,
+      "createdAt": "2024-01-15T10:00:00"
+    }
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Apenas administradores podem criar usuários"` - Usuário não é admin
+- `"Username já está em uso"` - Username já existe
+- `"Email já está em uso"` - Email já existe
+- `"A senha não pode ter mais de 72 caracteres"` - Senha muito longa
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Campos Obrigatórios:**
+- `username` (String) - Nome de usuário único
+- `email` (String) - Email único
+- `password` (String) - Senha do usuário
+
+**Campos Opcionais:**
+- `nome` (String) - Nome completo do usuário
+- `admin` (Boolean, padrão: false) - Se o usuário será administrador
+
+---
+
+### 3.13. Atualizar Usuário (Admin)
+
+**Mutation:** `atualizarUsuarioAdmin`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas administradores podem atualizar usuários.
+
+**Descrição:** Atualiza um usuário. Permite atualizar nome, email, senha e status de admin.
+
+**Request:**
+```graphql
+mutation {
+  atualizarUsuarioAdmin(
+    usuarioId: 2
+    usuario: {
+      nome: "João Silva Atualizado"
+      email: "novoemail@example.com"
+      admin: true
+    }
+  ) {
+    id
+    nome
+    username
+    email
+    admin
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        atualizarUsuarioAdmin(
+          usuarioId: 2
+          usuario: {
+            nome: "João Silva Atualizado"
+            email: "novoemail@example.com"
+            admin: true
+          }
+        ) {
+          id
+          nome
+          username
+          email
+          admin
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "atualizarUsuarioAdmin": {
+      "id": 2,
+      "nome": "João Silva Atualizado",
+      "username": "joao",
+      "email": "novoemail@example.com",
+      "admin": true,
+      "createdAt": "2024-01-15T10:00:00"
+    }
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Apenas administradores podem atualizar usuários"` - Usuário não é admin
+- `"Usuário não encontrado"` - Usuário não existe
+- `"Email já está em uso"` - Email já está em uso por outro usuário
+- `"A senha não pode ter mais de 72 caracteres"` - Senha muito longa
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Campos Opcionais (todos podem ser omitidos):**
+- `nome` (String) - Nome completo do usuário
+- `email` (String) - Email do usuário
+- `password` (String) - Nova senha do usuário
+- `admin` (Boolean) - Status de administrador
+
+**Nota:** Apenas os campos fornecidos serão atualizados. Os demais permanecem inalterados.
+
+---
+
+### 3.14. Deletar Usuário (Admin)
+
+**Mutation:** `deletarUsuario`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas administradores podem deletar usuários.
+
+**Request:**
+```graphql
+mutation {
+  deletarUsuario(usuarioId: 2)
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        deletarUsuario(usuarioId: 2)
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "deletarUsuario": true
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Apenas administradores podem deletar usuários"` - Usuário não é admin
+- `"Usuário não encontrado"` - Usuário não existe
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Nota:** Esta operação é irreversível. O usuário e todos os seus dados relacionados serão removidos.
+
+---
+
+### 2.15. Listar Usuários (Admin)
+
+**Query:** `usuarios`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas administradores podem acessar esta query.
+
+**Descrição:** Lista todos os usuários do sistema.
+
+**Parâmetros:**
+- `skip` (opcional, padrão: 0) - Número de registros para pular (paginação)
+- `limit` (opcional, padrão: 100) - Número máximo de registros a retornar
+
+**Request:**
+```graphql
+query {
+  usuarios(skip: 0, limit: 100) {
+    id
+    nome
+    username
+    email
+    admin
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        usuarios(skip: 0, limit: 100) {
+          id
+          nome
+          username
+          email
+          admin
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "usuarios": [
+      {
+        "id": 1,
+        "nome": "Admin",
+        "username": "admin",
+        "email": "admin@admin.com",
+        "admin": true,
+        "createdAt": "2024-01-15T10:00:00"
+      },
+      {
+        "id": 2,
+        "nome": "João Silva",
+        "username": "joao",
+        "email": "joao@example.com",
+        "admin": false,
+        "createdAt": "2024-01-15T11:00:00"
+      }
+    ]
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Apenas administradores podem listar usuários"` - Usuário não é admin
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+---
+
+### 2.16. Obter Usuário por ID (Admin)
+
+**Query:** `usuario`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas administradores podem acessar esta query.
+
+**Parâmetros:**
+- `usuarioId` (obrigatório) - ID do usuário
+
+**Request:**
+```graphql
+query {
+  usuario(usuarioId: 1) {
+    id
+    nome
+    username
+    email
+    admin
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        usuario(usuarioId: 1) {
+          id
+          nome
+          username
+          email
+          admin
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "usuario": {
+      "id": 1,
+      "nome": "Admin",
+      "username": "admin",
+      "email": "admin@admin.com",
+      "admin": true,
+      "createdAt": "2024-01-15T10:00:00"
+    }
+  }
+}
+```
+
+**Resposta quando não encontrado:**
+```json
+{
+  "data": {
+    "usuario": null
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Apenas administradores podem visualizar usuários"` - Usuário não é admin
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+---
+
 ## 4. Estrutura de Dados
 
 ### 4.1. Tipo: UsuarioType
@@ -2948,6 +3381,85 @@ export async function marcarReservaComoVista(token, reservaId) {
   `;
   
   return await graphqlRequest(query, { reservaId }, token);
+}
+
+// Gerenciamento de Usuários (Admin)
+export async function listarUsuarios(token, skip = 0, limit = 100) {
+  const query = `
+    query ListarUsuarios($skip: Int!, $limit: Int!) {
+      usuarios(skip: $skip, limit: $limit) {
+        id
+        nome
+        username
+        email
+        admin
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { skip, limit }, token);
+}
+
+export async function obterUsuario(token, usuarioId) {
+  const query = `
+    query ObterUsuario($usuarioId: Int!) {
+      usuario(usuarioId: $usuarioId) {
+        id
+        nome
+        username
+        email
+        admin
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { usuarioId }, token);
+}
+
+export async function criarUsuarioAdmin(token, usuario) {
+  const query = `
+    mutation CriarUsuarioAdmin($usuario: UsuarioAdminInput!) {
+      criarUsuarioAdmin(usuario: $usuario) {
+        id
+        nome
+        username
+        email
+        admin
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { usuario }, token);
+}
+
+export async function atualizarUsuarioAdmin(token, usuarioId, usuario) {
+  const query = `
+    mutation AtualizarUsuarioAdmin($usuarioId: Int!, $usuario: UsuarioAdminUpdateInput!) {
+      atualizarUsuarioAdmin(usuarioId: $usuarioId, usuario: $usuario) {
+        id
+        nome
+        username
+        email
+        admin
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { usuarioId, usuario }, token);
+}
+
+export async function deletarUsuario(token, usuarioId) {
+  const query = `
+    mutation DeletarUsuario($usuarioId: Int!) {
+      deletarUsuario(usuarioId: $usuarioId)
+    }
+  `;
+  
+  return await graphqlRequest(query, { usuarioId }, token);
 }
 
 // Disponibilidade

@@ -68,6 +68,69 @@ class AuthController:
         db.commit()
         db.refresh(usuario)
         return usuario
+    
+    @staticmethod
+    def listar_usuarios(db: Session, skip: int = 0, limit: int = 100) -> List[Usuario]:
+        """Lista todos os usuários."""
+        return db.query(Usuario).offset(skip).limit(limit).all()
+    
+    @staticmethod
+    def obter_usuario_por_id(db: Session, usuario_id: int) -> Optional[Usuario]:
+        """Obtém um usuário por ID."""
+        return db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    
+    @staticmethod
+    def deletar_usuario(db: Session, usuario_id: int) -> bool:
+        """Deleta um usuário."""
+        usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
+            return False
+        
+        db.delete(usuario)
+        db.commit()
+        return True
+    
+    @staticmethod
+    def atualizar_usuario_admin(
+        db: Session,
+        usuario_id: int,
+        nome: Optional[str] = None,
+        email: Optional[str] = None,
+        password: Optional[str] = None,
+        admin: Optional[bool] = None
+    ) -> Optional[Usuario]:
+        """
+        Atualiza um usuário (para uso por administradores).
+        Permite atualizar nome, email, senha e status de admin.
+        """
+        usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
+            return None
+        
+        if nome is not None:
+            usuario.nome = nome
+        
+        if email is not None:
+            # Verifica se o email já está em uso por outro usuário
+            existing_user = db.query(Usuario).filter(
+                Usuario.email == email,
+                Usuario.id != usuario_id
+            ).first()
+            if existing_user:
+                raise ValueError("Email já está em uso")
+            usuario.email = email
+        
+        if password is not None:
+            if len(password.encode('utf-8')) > 72:
+                raise ValueError("A senha não pode ter mais de 72 caracteres")
+            usuario.hashed_password = get_password_hash(password)
+        
+        if admin is not None:
+            usuario.admin = admin
+        
+        db.commit()
+        db.refresh(usuario)
+        return usuario
 
 
 

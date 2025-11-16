@@ -196,6 +196,23 @@ class UsuarioUpdateInput:
     password: Optional[str] = None
 
 
+@strawberry.input
+class UsuarioAdminInput:
+    nome: Optional[str] = None
+    username: str
+    email: str
+    password: str
+    admin: bool = False
+
+
+@strawberry.input
+class UsuarioAdminUpdateInput:
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    admin: Optional[bool] = None
+
+
 @strawberry.type
 class TokenType:
     access_token: str
@@ -396,6 +413,59 @@ class Query:
             admin=current_user.admin,
             created_at=current_user.created_at
         )
+    
+    @strawberry.field
+    def usuarios(self, info, skip: int = 0, limit: int = 100) -> List[UsuarioType]:
+        """
+        Lista todos os usuários do sistema.
+        Apenas administradores podem acessar esta query.
+        """
+        current_user = get_current_user_from_context(info)
+        if not current_user.admin:
+            raise Exception("Apenas administradores podem listar usuários")
+        
+        db = SessionLocal()
+        try:
+            usuarios = AuthController.listar_usuarios(db, skip=skip, limit=limit)
+            return [
+                UsuarioType(
+                    id=u.id,
+                    nome=u.nome,
+                    username=u.username,
+                    email=u.email,
+                    admin=u.admin,
+                    created_at=u.created_at
+                )
+                for u in usuarios
+            ]
+        finally:
+            db.close()
+    
+    @strawberry.field
+    def usuario(self, info, usuario_id: int) -> Optional[UsuarioType]:
+        """
+        Obtém um usuário específico por ID.
+        Apenas administradores podem acessar esta query.
+        """
+        current_user = get_current_user_from_context(info)
+        if not current_user.admin:
+            raise Exception("Apenas administradores podem visualizar usuários")
+        
+        db = SessionLocal()
+        try:
+            u = AuthController.obter_usuario_por_id(db, usuario_id)
+            if not u:
+                return None
+            return UsuarioType(
+                id=u.id,
+                nome=u.nome,
+                username=u.username,
+                email=u.email,
+                admin=u.admin,
+                created_at=u.created_at
+            )
+        finally:
+            db.close()
     
     @strawberry.field
     def usuarios_nao_admin(self, info) -> List[ResponsavelType]:
@@ -981,6 +1051,108 @@ class Mutation:
             )
             if not resultado:
                 raise Exception("Reserva não encontrada ou você não é participante desta reserva.")
+            return resultado
+        except Exception as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def criar_usuario_admin(self, info, usuario: UsuarioAdminInput) -> UsuarioType:
+        """
+        Cria um novo usuário (apenas para administradores).
+        Permite definir se o usuário será admin ou não.
+        """
+        current_user = get_current_user_from_context(info)
+        if not current_user.admin:
+            raise Exception("Apenas administradores podem criar usuários")
+        
+        db = SessionLocal()
+        try:
+            # Valida tamanho da senha
+            if len(usuario.password.encode('utf-8')) > 72:
+                raise Exception("A senha não pode ter mais de 72 caracteres")
+            
+            # Verifica se username já existe
+            existing_user = db.query(Usuario).filter(Usuario.username == usuario.username).first()
+            if existing_user:
+                raise Exception("Username já está em uso")
+            
+            # Verifica se email já existe
+            existing_email = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+            if existing_email:
+                raise Exception("Email já está em uso")
+            
+            novo_usuario = AuthController.criar_usuario(
+                db, usuario.username, usuario.email, usuario.password, 
+                nome=usuario.nome, admin=usuario.admin
+            )
+            return UsuarioType(
+                id=novo_usuario.id,
+                nome=novo_usuario.nome,
+                username=novo_usuario.username,
+                email=novo_usuario.email,
+                admin=novo_usuario.admin,
+                created_at=novo_usuario.created_at
+            )
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def atualizar_usuario_admin(
+        self,
+        info,
+        usuario_id: int,
+        usuario: UsuarioAdminUpdateInput
+    ) -> UsuarioType:
+        """
+        Atualiza um usuário (apenas para administradores).
+        Permite atualizar nome, email, senha e status de admin.
+        """
+        current_user = get_current_user_from_context(info)
+        if not current_user.admin:
+            raise Exception("Apenas administradores podem atualizar usuários")
+        
+        db = SessionLocal()
+        try:
+            usuario_atualizado = AuthController.atualizar_usuario_admin(
+                db,
+                usuario_id,
+                nome=usuario.nome,
+                email=usuario.email,
+                password=usuario.password,
+                admin=usuario.admin
+            )
+            if not usuario_atualizado:
+                raise Exception("Usuário não encontrado")
+            
+            return UsuarioType(
+                id=usuario_atualizado.id,
+                nome=usuario_atualizado.nome,
+                username=usuario_atualizado.username,
+                email=usuario_atualizado.email,
+                admin=usuario_atualizado.admin,
+                created_at=usuario_atualizado.created_at
+            )
+        except ValueError as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def deletar_usuario(self, info, usuario_id: int) -> bool:
+        """
+        Deleta um usuário (apenas para administradores).
+        """
+        current_user = get_current_user_from_context(info)
+        if not current_user.admin:
+            raise Exception("Apenas administradores podem deletar usuários")
+        
+        db = SessionLocal()
+        try:
+            resultado = AuthController.deletar_usuario(db, usuario_id)
+            if not resultado:
+                raise Exception("Usuário não encontrado")
             return resultado
         except Exception as e:
             raise Exception(str(e))
