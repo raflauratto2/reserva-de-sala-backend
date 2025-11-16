@@ -16,6 +16,18 @@ from app.exceptions import ConflitoHorarioException
 from datetime import timedelta
 
 
+def criar_responsavel_type(usuario):
+    """Helper para criar ResponsavelType a partir de um Usuario."""
+    if not usuario:
+        return None
+    return ResponsavelType(
+        id=usuario.id,
+        nome=usuario.nome,
+        username=usuario.username,
+        email=usuario.email
+    )
+
+
 @strawberry.type
 class UsuarioType:
     id: int
@@ -46,6 +58,14 @@ class HorarioDisponivelType:
 
 
 @strawberry.type
+class ResponsavelType:
+    id: int
+    nome: Optional[str]
+    username: str
+    email: str
+
+
+@strawberry.type
 class ReservaType:
     id: int
     local: Optional[str]
@@ -54,6 +74,7 @@ class ReservaType:
     data_hora_inicio: datetime
     data_hora_fim: datetime
     responsavel_id: int
+    responsavel: Optional[ResponsavelType] = None
     cafe_quantidade: Optional[int]
     cafe_descricao: Optional[str]
     created_at: datetime
@@ -111,6 +132,13 @@ class UsuarioInput:
 class LoginInput:
     username: str
     password: str
+
+
+@strawberry.input
+class UsuarioUpdateInput:
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
 
 
 @strawberry.type
@@ -175,6 +203,7 @@ class Query:
                     data_hora_inicio=r.data_hora_inicio,
                     data_hora_fim=r.data_hora_fim,
                     responsavel_id=r.responsavel_id,
+                    responsavel=criar_responsavel_type(r.responsavel),
                     cafe_quantidade=r.cafe_quantidade,
                     cafe_descricao=r.cafe_descricao,
                     created_at=r.created_at,
@@ -203,6 +232,7 @@ class Query:
                 data_hora_inicio=r.data_hora_inicio,
                 data_hora_fim=r.data_hora_fim,
                 responsavel_id=r.responsavel_id,
+                responsavel=criar_responsavel_type(r.responsavel),
                 cafe_quantidade=r.cafe_quantidade,
                 cafe_descricao=r.cafe_descricao,
                 created_at=r.created_at,
@@ -334,6 +364,7 @@ class Query:
                     data_hora_inicio=r.data_hora_inicio,
                     data_hora_fim=r.data_hora_fim,
                     responsavel_id=r.responsavel_id,
+                    responsavel=criar_responsavel_type(r.responsavel),
                     cafe_quantidade=r.cafe_quantidade,
                     cafe_descricao=r.cafe_descricao,
                     created_at=r.created_at,
@@ -510,6 +541,7 @@ class Mutation:
                 data_hora_inicio=r.data_hora_inicio,
                 data_hora_fim=r.data_hora_fim,
                 responsavel_id=r.responsavel_id,
+                responsavel=criar_responsavel_type(r.responsavel),
                 cafe_quantidade=r.cafe_quantidade,
                 cafe_descricao=r.cafe_descricao,
                 created_at=r.created_at,
@@ -546,6 +578,8 @@ class Mutation:
             r = ReservaController.atualizar(db, reserva_id, reserva_update, current_user.id)
             if not r:
                 return None
+            # Recarrega a reserva com o relacionamento responsavel
+            r = ReservaController.obter_por_id(db, r.id)
             return ReservaType(
                 id=r.id,
                 local=r.local,
@@ -554,6 +588,7 @@ class Mutation:
                 data_hora_inicio=r.data_hora_inicio,
                 data_hora_fim=r.data_hora_fim,
                 responsavel_id=r.responsavel_id,
+                responsavel=criar_responsavel_type(r.responsavel),
                 cafe_quantidade=r.cafe_quantidade,
                 cafe_descricao=r.cafe_descricao,
                 created_at=r.created_at,
@@ -654,6 +689,36 @@ class Mutation:
             if not resultado:
                 raise Exception("Sala não encontrada ou você não tem permissão para deletá-la")
             return resultado
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def atualizar_perfil(self, info, usuario: UsuarioUpdateInput) -> UsuarioType:
+        """Atualiza o perfil do usuário atual."""
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            usuario_atualizado = AuthController.atualizar_usuario(
+                db,
+                current_user.id,
+                nome=usuario.nome,
+                email=usuario.email,
+                password=usuario.password
+            )
+            if not usuario_atualizado:
+                raise Exception("Erro ao atualizar perfil")
+            
+            return UsuarioType(
+                id=usuario_atualizado.id,
+                nome=usuario_atualizado.nome,
+                username=usuario_atualizado.username,
+                email=usuario_atualizado.email,
+                admin=usuario_atualizado.admin,
+                created_at=usuario_atualizado.created_at
+            )
+        except ValueError as e:
+            raise Exception(str(e))
         finally:
             db.close()
 

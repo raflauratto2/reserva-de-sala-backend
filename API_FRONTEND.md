@@ -221,6 +221,12 @@ query {
     dataHoraInicio
     dataHoraFim
     responsavelId
+    responsavel {
+      id
+      nome
+      username
+      email
+    }
     cafeQuantidade
     cafeDescricao
     createdAt
@@ -271,9 +277,16 @@ const data = await response.json();
         "id": 1,
         "local": "Edifício A",
         "sala": "Sala 101",
+        "salaId": 1,
         "dataHoraInicio": "2024-01-15T10:00:00",
         "dataHoraFim": "2024-01-15T12:00:00",
         "responsavelId": 1,
+        "responsavel": {
+          "id": 1,
+          "nome": "João Silva",
+          "username": "joao",
+          "email": "joao@example.com"
+        },
         "cafeQuantidade": 10,
         "cafeDescricao": "Café expresso",
         "createdAt": "2024-01-15T09:00:00",
@@ -355,9 +368,16 @@ const data = await response.json();
       "id": 1,
       "local": "Edifício A",
       "sala": "Sala 101",
+      "salaId": 1,
       "dataHoraInicio": "2024-01-15T10:00:00",
       "dataHoraFim": "2024-01-15T12:00:00",
       "responsavelId": 1,
+      "responsavel": {
+        "id": 1,
+        "nome": "João Silva",
+        "username": "joao",
+        "email": "joao@example.com"
+      },
       "cafeQuantidade": 10,
       "cafeDescricao": "Café expresso",
       "createdAt": "2024-01-15T09:00:00",
@@ -780,6 +800,12 @@ const data = await response.json();
         "dataHoraInicio": "2024-01-15T10:00:00",
         "dataHoraFim": "2024-01-15T12:00:00",
         "responsavelId": 1,
+        "responsavel": {
+          "id": 1,
+          "nome": "João Silva",
+          "username": "joao",
+          "email": "joao@example.com"
+        },
         "cafeQuantidade": 10,
         "cafeDescricao": "Café expresso",
         "createdAt": "2024-01-15T09:00:00",
@@ -1025,7 +1051,100 @@ const data = await response.json();
 
 ## 3. Mutations (Modificações)
 
-### 3.1. Criar Reserva
+### 3.1. Atualizar Perfil do Usuário
+
+**Mutation:** `atualizarPerfil`
+
+**Autenticação:** Requerida
+
+**Descrição:** Permite ao usuário atualizar seu próprio perfil (nome, email e/ou senha).
+
+**Request:**
+```graphql
+mutation {
+  atualizarPerfil(usuario: {
+    nome: "João Silva Atualizado"
+    email: "novoemail@example.com"
+    password: "novaSenha123"
+  }) {
+    id
+    nome
+    username
+    email
+    admin
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        atualizarPerfil(usuario: {
+          nome: "João Silva Atualizado"
+          email: "novoemail@example.com"
+        }) {
+          id
+          nome
+          username
+          email
+          admin
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "atualizarPerfil": {
+      "id": 1,
+      "nome": "João Silva Atualizado",
+      "username": "joao",
+      "email": "novoemail@example.com",
+      "admin": false,
+      "createdAt": "2024-01-15T09:00:00"
+    }
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Email já está em uso"` - Email já está sendo usado por outro usuário
+- `"A senha não pode ter mais de 72 caracteres"` - Senha muito longa
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Campos Opcionais (todos podem ser omitidos):**
+- `nome` (String) - Novo nome do usuário
+- `email` (String) - Novo email (deve ser único)
+- `password` (String) - Nova senha
+
+**Nota:** 
+- Apenas os campos fornecidos serão atualizados. Os demais permanecem inalterados.
+- O usuário só pode atualizar seu próprio perfil.
+- O `username` não pode ser alterado.
+- O campo `admin` não pode ser alterado (apenas via script de admin).
+
+---
+
+### 3.2. Criar Reserva
 
 **Mutation:** `criarReserva`
 
@@ -1172,7 +1291,7 @@ const data = await response.json();
 
 ---
 
-### 3.2. Atualizar Reserva
+### 3.3. Atualizar Reserva
 
 **Mutation:** `atualizarReserva`
 
@@ -1302,7 +1421,7 @@ const data = await response.json();
 
 ---
 
-### 3.3. Deletar Reserva
+### 3.4. Deletar Reserva
 
 **Mutation:** `deletarReserva`
 
@@ -1363,7 +1482,7 @@ const data = await response.json();
 
 ---
 
-### 3.4. Criar Sala
+### 3.5. Criar Sala
 
 **Mutation:** `criarSala`
 
@@ -1466,7 +1585,7 @@ const data = await response.json();
 
 ---
 
-### 3.5. Atualizar Sala
+### 3.6. Atualizar Sala
 
 **Mutation:** `atualizarSala`
 
@@ -1585,7 +1704,7 @@ const data = await response.json();
 
 ---
 
-### 3.6. Deletar Sala
+### 3.7. Deletar Sala
 
 **Mutation:** `deletarSala`
 
@@ -1667,6 +1786,13 @@ interface UsuarioType {
 ### 4.2. Tipo: ReservaType
 
 ```typescript
+interface ResponsavelType {
+  id: number;
+  nome?: string | null;
+  username: string;
+  email: string;
+}
+
 interface ReservaType {
   id: number;
   local?: string | null;
@@ -1675,6 +1801,7 @@ interface ReservaType {
   dataHoraInicio: string; // DateTime ISO 8601
   dataHoraFim: string; // DateTime ISO 8601
   responsavelId: number;
+  responsavel?: ResponsavelType | null; // Dados do usuário responsável pela reserva
   cafeQuantidade?: number | null;
   cafeDescricao?: string | null;
   createdAt: string; // DateTime ISO 8601
@@ -1835,6 +1962,12 @@ export async function listarReservas(token, skip = 0, limit = 100) {
         dataHoraInicio
         dataHoraFim
         responsavelId
+        responsavel {
+          id
+          nome
+          username
+          email
+        }
         cafeQuantidade
         cafeDescricao
         createdAt
@@ -1857,6 +1990,12 @@ export async function obterReserva(token, reservaId) {
         dataHoraInicio
         dataHoraFim
         responsavelId
+        responsavel {
+          id
+          nome
+          username
+          email
+        }
         cafeQuantidade
         cafeDescricao
         createdAt
@@ -1879,6 +2018,12 @@ export async function criarReserva(token, reserva) {
         dataHoraInicio
         dataHoraFim
         responsavelId
+        responsavel {
+          id
+          nome
+          username
+          email
+        }
         cafeQuantidade
         cafeDescricao
         createdAt
@@ -2019,6 +2164,23 @@ export async function obterMeuPerfil(token) {
   return await graphqlRequest(query, {}, token);
 }
 
+export async function atualizarPerfil(token, usuario) {
+  const query = `
+    mutation AtualizarPerfil($usuario: UsuarioUpdateInput!) {
+      atualizarPerfil(usuario: $usuario) {
+        id
+        nome
+        username
+        email
+        admin
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { usuario }, token);
+}
+
 // Disponibilidade
 export async function listarReservasPorSala(token, salaId, data) {
   const query = `
@@ -2031,6 +2193,12 @@ export async function listarReservasPorSala(token, salaId, data) {
         dataHoraInicio
         dataHoraFim
         responsavelId
+        responsavel {
+          id
+          nome
+          username
+          email
+        }
         cafeQuantidade
         cafeDescricao
         createdAt
@@ -2086,6 +2254,12 @@ export async function atualizarReserva(token, reservaId, reserva) {
         dataHoraInicio
         dataHoraFim
         responsavelId
+        responsavel {
+          id
+          nome
+          username
+          email
+        }
         cafeQuantidade
         cafeDescricao
         createdAt

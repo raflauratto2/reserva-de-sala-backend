@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Tuple
@@ -88,17 +88,18 @@ class ReservaController:
         db.add(db_reserva)
         db.commit()
         db.refresh(db_reserva)
-        return db_reserva
+        # Recarrega com relacionamento responsavel
+        return ReservaController.obter_por_id(db, db_reserva.id)
 
     @staticmethod
     def obter_por_id(db: Session, reserva_id: int) -> Optional[Reserva]:
-        """Obtém uma reserva por ID."""
-        return db.query(Reserva).filter(Reserva.id == reserva_id).first()
+        """Obtém uma reserva por ID com relacionamento responsavel carregado."""
+        return db.query(Reserva).options(joinedload(Reserva.responsavel)).filter(Reserva.id == reserva_id).first()
 
     @staticmethod
     def listar(db: Session, skip: int = 0, limit: int = 100) -> List[Reserva]:
-        """Lista todas as reservas."""
-        return db.query(Reserva).offset(skip).limit(limit).all()
+        """Lista todas as reservas com relacionamento responsavel carregado."""
+        return db.query(Reserva).options(joinedload(Reserva.responsavel)).offset(skip).limit(limit).all()
 
     @staticmethod
     def atualizar(
@@ -172,7 +173,7 @@ class ReservaController:
         inicio_dia = datetime.combine(data, datetime.min.time())
         fim_dia = datetime.combine(data, datetime.max.time())
         
-        return db.query(Reserva).filter(
+        return db.query(Reserva).options(joinedload(Reserva.responsavel)).filter(
             Reserva.sala_id == sala_id,
             Reserva.data_hora_inicio >= inicio_dia,
             Reserva.data_hora_inicio < fim_dia + timedelta(days=1)
