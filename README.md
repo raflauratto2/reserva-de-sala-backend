@@ -100,7 +100,27 @@ docker compose restart
 
 # Status
 docker compose ps
+
+# Criar usuário administrador
+docker compose exec api python create_admin.py admin admin@example.com senha123
 ```
+
+## Criar Usuário Administrador
+
+Para criar um usuário administrador (necessário para criar, editar e deletar salas):
+
+```bash
+# Dentro do container Docker
+docker compose exec api python create_admin.py <username> <email> <password>
+
+# Exemplo:
+docker compose exec api python create_admin.py admin admin@example.com senha123
+```
+
+**Importante:**
+- Apenas usuários administradores podem criar, editar e deletar salas
+- Usuários criados via GraphQL (`criarUsuario`) **não** são administradores por padrão
+- O primeiro usuário admin deve ser criado manualmente usando o script
 
 ## Rodando Localmente (Sem Docker)
 

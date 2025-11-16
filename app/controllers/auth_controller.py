@@ -8,7 +8,7 @@ class AuthController:
     """Controller para gerenciar autenticação e usuários."""
     
     @staticmethod
-    def criar_usuario(db: Session, username: str, email: str, password: str) -> Usuario:
+    def criar_usuario(db: Session, username: str, email: str, password: str, admin: bool = False) -> Usuario:
         """Cria um novo usuário."""
         # Valida tamanho da senha antes de fazer hash (bcrypt tem limite de 72 bytes)
         password_bytes = password.encode('utf-8')
@@ -19,7 +19,8 @@ class AuthController:
         db_user = Usuario(
             username=username,
             email=email,
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            admin=admin
         )
         db.add(db_user)
         db.commit()
