@@ -5,11 +5,12 @@ from strawberry.fastapi import GraphQLRouter
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Reserva, Usuario, Sala
+from app.models import Reserva, Usuario, Sala, ReservaParticipante
 from app.views import ReservaCreate, ReservaUpdate, SalaCreate, SalaUpdate
 from app.controllers.reserva_controller import ReservaController
 from app.controllers.sala_controller import SalaController
 from app.controllers.auth_controller import AuthController
+from app.controllers.reserva_participante_controller import ReservaParticipanteController
 from app.auth import authenticate_user, create_access_token
 from app.config import settings
 from app.exceptions import ConflitoHorarioException
@@ -25,6 +26,44 @@ def criar_responsavel_type(usuario):
         nome=usuario.nome,
         username=usuario.username,
         email=usuario.email
+    )
+
+
+def criar_reserva_type_completa(reserva):
+    """Helper para criar ReservaType completo a partir de uma Reserva."""
+    if not reserva:
+        return None
+    
+    # Carrega a sala se existir
+    sala_type = None
+    if reserva.sala_rel:
+        sala_type = SalaType(
+            id=reserva.sala_rel.id,
+            nome=reserva.sala_rel.nome,
+            local=reserva.sala_rel.local,
+            capacidade=reserva.sala_rel.capacidade,
+            descricao=reserva.sala_rel.descricao,
+            criador_id=reserva.sala_rel.criador_id,
+            ativa=reserva.sala_rel.ativa,
+            created_at=reserva.sala_rel.created_at,
+            updated_at=reserva.sala_rel.updated_at
+        )
+    
+    return ReservaType(
+        id=reserva.id,
+        local=reserva.local,
+        sala=reserva.sala,
+        sala_id=reserva.sala_id,
+        data_hora_inicio=reserva.data_hora_inicio,
+        data_hora_fim=reserva.data_hora_fim,
+        responsavel_id=reserva.responsavel_id,
+        responsavel=criar_responsavel_type(reserva.responsavel) if reserva.responsavel else None,
+        cafe_quantidade=reserva.cafe_quantidade,
+        cafe_descricao=reserva.cafe_descricao,
+        link_meet=reserva.link_meet,
+        created_at=reserva.created_at,
+        updated_at=reserva.updated_at,
+        sala_rel=sala_type
     )
 
 
@@ -66,6 +105,18 @@ class ResponsavelType:
 
 
 @strawberry.type
+class ReservaParticipanteType:
+    id: int
+    reserva_id: int
+    usuario_id: int
+    notificado: bool
+    visto: bool  # Se o usuário já viu a notificação
+    created_at: datetime
+    usuario: Optional[ResponsavelType] = None
+    reserva: Optional["ReservaType"] = None  # Dados da reserva
+
+
+@strawberry.type
 class ReservaType:
     id: int
     local: Optional[str]
@@ -77,6 +128,8 @@ class ReservaType:
     responsavel: Optional[ResponsavelType] = None
     cafe_quantidade: Optional[int]
     cafe_descricao: Optional[str]
+    link_meet: Optional[str]  # Link da sala de meet (URL)
+    sala_rel: Optional["SalaType"] = None  # Dados completos da sala
     created_at: datetime
     updated_at: datetime
 
@@ -90,6 +143,7 @@ class ReservaInput:
     data_hora_fim: datetime
     cafe_quantidade: Optional[int] = None
     cafe_descricao: Optional[str] = None
+    link_meet: Optional[str] = None  # Link da sala de meet (URL)
 
 
 @strawberry.input
@@ -101,6 +155,7 @@ class ReservaUpdateInput:
     data_hora_fim: Optional[datetime] = None
     cafe_quantidade: Optional[int] = None
     cafe_descricao: Optional[str] = None
+    link_meet: Optional[str] = None  # Link da sala de meet (URL)
 
 
 @strawberry.input
@@ -206,6 +261,7 @@ class Query:
                     responsavel=criar_responsavel_type(r.responsavel),
                     cafe_quantidade=r.cafe_quantidade,
                     cafe_descricao=r.cafe_descricao,
+                    link_meet=r.link_meet,
                     created_at=r.created_at,
                     updated_at=r.updated_at
                 )
@@ -235,6 +291,7 @@ class Query:
                 responsavel=criar_responsavel_type(r.responsavel),
                 cafe_quantidade=r.cafe_quantidade,
                 cafe_descricao=r.cafe_descricao,
+                link_meet=r.link_meet,
                 created_at=r.created_at,
                 updated_at=r.updated_at
             )
@@ -341,6 +398,99 @@ class Query:
         )
     
     @strawberry.field
+    def usuarios_nao_admin(self, info) -> List[ResponsavelType]:
+        """Lista todos os usuários que não são administradores (para seleção de participantes)."""
+        get_current_user_from_context(info)  # Valida autenticação
+        
+        db = SessionLocal()
+        try:
+            usuarios = ReservaParticipanteController.listar_usuarios_nao_admin(db)
+            return [
+                ResponsavelType(
+                    id=u.id,
+                    nome=u.nome,
+                    username=u.username,
+                    email=u.email
+                )
+                for u in usuarios
+            ]
+        finally:
+            db.close()
+    
+    @strawberry.field
+    def participantes_reserva(self, info, reserva_id: int) -> List[ReservaParticipanteType]:
+        """Lista todos os participantes de uma reserva."""
+        get_current_user_from_context(info)  # Valida autenticação
+        
+        db = SessionLocal()
+        try:
+            participantes = ReservaParticipanteController.listar_participantes(db, reserva_id)
+            return [
+                ReservaParticipanteType(
+                    id=p.id,
+                    reserva_id=p.reserva_id,
+                    usuario_id=p.usuario_id,
+                    notificado=p.notificado,
+                    visto=p.visto,
+                    created_at=p.created_at,
+                    usuario=criar_responsavel_type(p.usuario) if p.usuario else None,
+                    reserva=criar_reserva_type_completa(p.reserva) if p.reserva else None
+                )
+                for p in participantes
+            ]
+        finally:
+            db.close()
+    
+    @strawberry.field
+    def minhas_reservas_convidadas(
+        self,
+        info,
+        apenas_nao_notificadas: bool = False,
+        apenas_nao_vistas: bool = False
+    ) -> List[ReservaParticipanteType]:
+        """
+        Lista todas as reservas em que o usuário atual foi convidado como participante.
+        Se apenas_nao_notificadas=True, retorna apenas reservas não notificadas.
+        Se apenas_nao_vistas=True, retorna apenas reservas não vistas (útil para notificações).
+        """
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            participantes = ReservaParticipanteController.listar_reservas_do_usuario(
+                db, current_user.id, apenas_nao_notificadas, apenas_nao_vistas
+            )
+            return [
+                ReservaParticipanteType(
+                    id=p.id,
+                    reserva_id=p.reserva_id,
+                    usuario_id=p.usuario_id,
+                    notificado=p.notificado,
+                    visto=p.visto,
+                    created_at=p.created_at,
+                    usuario=criar_responsavel_type(p.usuario) if p.usuario else None,
+                    reserva=criar_reserva_type_completa(p.reserva) if p.reserva else None
+                )
+                for p in participantes
+            ]
+        finally:
+            db.close()
+    
+    @strawberry.field
+    def contar_reservas_nao_vistas(self, info) -> int:
+        """
+        Conta quantas reservas não vistas o usuário atual tem.
+        Útil para exibir o número de notificações no sino.
+        """
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            return ReservaParticipanteController.contar_reservas_nao_vistas(db, current_user.id)
+        finally:
+            db.close()
+    
+    @strawberry.field
     def reservas_por_sala(
         self,
         info,
@@ -367,6 +517,7 @@ class Query:
                     responsavel=criar_responsavel_type(r.responsavel),
                     cafe_quantidade=r.cafe_quantidade,
                     cafe_descricao=r.cafe_descricao,
+                    link_meet=r.link_meet,
                     created_at=r.created_at,
                     updated_at=r.updated_at
                 )
@@ -530,7 +681,8 @@ class Mutation:
                 data_hora_inicio=reserva.data_hora_inicio,
                 data_hora_fim=reserva.data_hora_fim,
                 cafe_quantidade=reserva.cafe_quantidade,
-                cafe_descricao=reserva.cafe_descricao
+                cafe_descricao=reserva.cafe_descricao,
+                link_meet=reserva.link_meet
             )
             r = ReservaController.criar(db, reserva_create, current_user.id, sala_id=reserva.sala_id)
             return ReservaType(
@@ -544,6 +696,7 @@ class Mutation:
                 responsavel=criar_responsavel_type(r.responsavel),
                 cafe_quantidade=r.cafe_quantidade,
                 cafe_descricao=r.cafe_descricao,
+                link_meet=r.link_meet,
                 created_at=r.created_at,
                 updated_at=r.updated_at
             )
@@ -573,7 +726,8 @@ class Mutation:
                 data_hora_inicio=reserva.data_hora_inicio,
                 data_hora_fim=reserva.data_hora_fim,
                 cafe_quantidade=reserva.cafe_quantidade,
-                cafe_descricao=reserva.cafe_descricao
+                cafe_descricao=reserva.cafe_descricao,
+                link_meet=reserva.link_meet
             )
             r = ReservaController.atualizar(db, reserva_id, reserva_update, current_user.id)
             if not r:
@@ -591,6 +745,7 @@ class Mutation:
                 responsavel=criar_responsavel_type(r.responsavel),
                 cafe_quantidade=r.cafe_quantidade,
                 cafe_descricao=r.cafe_descricao,
+                link_meet=r.link_meet,
                 created_at=r.created_at,
                 updated_at=r.updated_at
             )
@@ -718,6 +873,116 @@ class Mutation:
                 created_at=usuario_atualizado.created_at
             )
         except ValueError as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def adicionar_participante(
+        self,
+        info,
+        reserva_id: int,
+        usuario_id: int
+    ) -> ReservaParticipanteType:
+        """
+        Adiciona um participante a uma reserva.
+        Apenas o responsável pela reserva pode adicionar participantes.
+        Não permite adicionar admins como participantes.
+        """
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            participante = ReservaParticipanteController.adicionar_participante(
+                db, reserva_id, usuario_id, current_user.id
+            )
+            if not participante:
+                raise Exception("Não foi possível adicionar o participante. Verifique se você é o responsável pela reserva e se o usuário não é admin.")
+            
+            return ReservaParticipanteType(
+                id=participante.id,
+                reserva_id=participante.reserva_id,
+                usuario_id=participante.usuario_id,
+                notificado=participante.notificado,
+                visto=participante.visto,
+                created_at=participante.created_at,
+                usuario=criar_responsavel_type(participante.usuario) if participante.usuario else None,
+                reserva=criar_reserva_type_completa(participante.reserva) if participante.reserva else None
+            )
+        except Exception as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def remover_participante(
+        self,
+        info,
+        reserva_id: int,
+        usuario_id: int
+    ) -> bool:
+        """
+        Remove um participante de uma reserva.
+        Apenas o responsável pela reserva pode remover participantes.
+        """
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            resultado = ReservaParticipanteController.remover_participante(
+                db, reserva_id, usuario_id, current_user.id
+            )
+            if not resultado:
+                raise Exception("Não foi possível remover o participante. Verifique se você é o responsável pela reserva.")
+            return resultado
+        except Exception as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def marcar_reserva_como_notificada(
+        self,
+        info,
+        reserva_id: int
+    ) -> bool:
+        """Marca uma reserva como notificada para o usuário atual."""
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            resultado = ReservaParticipanteController.marcar_como_notificado(
+                db, reserva_id, current_user.id
+            )
+            if not resultado:
+                raise Exception("Reserva não encontrada ou você não é participante desta reserva.")
+            return resultado
+        except Exception as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    def marcar_reserva_como_vista(
+        self,
+        info,
+        reserva_id: int
+    ) -> bool:
+        """
+        Marca uma reserva como vista para o usuário atual.
+        Use quando o usuário visualizar a notificação no sino.
+        """
+        current_user = get_current_user_from_context(info)
+        
+        db = SessionLocal()
+        try:
+            resultado = ReservaParticipanteController.marcar_como_visto(
+                db, reserva_id, current_user.id
+            )
+            if not resultado:
+                raise Exception("Reserva não encontrada ou você não é participante desta reserva.")
+            return resultado
+        except Exception as e:
             raise Exception(str(e))
         finally:
             db.close()

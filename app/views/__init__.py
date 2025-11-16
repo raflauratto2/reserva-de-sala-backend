@@ -39,6 +39,7 @@ class ReservaBase(BaseModel):
     data_hora_fim: datetime
     cafe_quantidade: Optional[int] = Field(None, ge=0)
     cafe_descricao: Optional[str] = None
+    link_meet: Optional[str] = None  # Link da sala de meet (URL)
 
 
 class ReservaCreate(ReservaBase):
@@ -53,6 +54,7 @@ class ReservaUpdate(BaseModel):
     data_hora_fim: Optional[datetime] = None
     cafe_quantidade: Optional[int] = Field(None, ge=0)
     cafe_descricao: Optional[str] = None
+    link_meet: Optional[str] = None  # Link da sala de meet (URL)
 
 
 class ReservaResponse(ReservaBase):
@@ -90,6 +92,25 @@ class SalaResponse(SalaBase):
     ativa: bool
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ReservaParticipanteBase(BaseModel):
+    reserva_id: int
+    usuario_id: int
+
+
+class ReservaParticipanteCreate(ReservaParticipanteBase):
+    pass
+
+
+class ReservaParticipanteResponse(ReservaParticipanteBase):
+    id: int
+    notificado: bool
+    visto: bool  # Se o usuário já viu a notificação
+    created_at: datetime
 
     class Config:
         from_attributes = True

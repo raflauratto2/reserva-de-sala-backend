@@ -18,6 +18,7 @@ class Usuario(Base):
 
     reservas = relationship("Reserva", back_populates="responsavel")
     salas_criadas = relationship("Sala", back_populates="criador")
+    reservas_participantes = relationship("ReservaParticipante", back_populates="usuario")
 
 
 class Sala(Base):
@@ -49,13 +50,34 @@ class Reserva(Base):
     responsavel_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     cafe_quantidade = Column(Integer, nullable=True)
     cafe_descricao = Column(Text, nullable=True)
+    link_meet = Column(String, nullable=True)  # Link da sala de meet (URL)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     responsavel = relationship("Usuario", back_populates="reservas")
     sala_rel = relationship("Sala", back_populates="reservas")
+    participantes = relationship("ReservaParticipante", back_populates="reserva", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint('data_hora_fim > data_hora_inicio', name='check_data_hora_valida'),
+    )
+
+
+class ReservaParticipante(Base):
+    __tablename__ = "reserva_participantes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reserva_id = Column(Integer, ForeignKey("reservas.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    notificado = Column(Boolean, default=False, nullable=False)
+    visto = Column(Boolean, default=False, nullable=False)  # Se o usuário já viu a notificação
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    reserva = relationship("Reserva", back_populates="participantes")
+    usuario = relationship("Usuario", back_populates="reservas_participantes")
+
+    __table_args__ = (
+        # Garante que um usuário não seja adicionado duas vezes na mesma reserva
+        CheckConstraint('reserva_id IS NOT NULL AND usuario_id IS NOT NULL', name='check_reserva_usuario'),
     )
 

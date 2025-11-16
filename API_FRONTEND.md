@@ -131,7 +131,7 @@ const data = await response.json();
 - `password` (String) - Senha do usuário
 
 **Campos Opcionais:**
-- `nome` (String) - Nome completo do usuário (opcional)
+- `nome` (String) - Nome completo do usuário. Pode ser preenchido durante o registro. Se não fornecido, será `null`.
 
 ---
 
@@ -229,6 +229,7 @@ query {
     }
     cafeQuantidade
     cafeDescricao
+    linkMeet
     createdAt
     updatedAt
   }
@@ -289,6 +290,7 @@ const data = await response.json();
         },
         "cafeQuantidade": 10,
         "cafeDescricao": "Café expresso",
+        "linkMeet": "https://meet.google.com/abc-defg-hij",
         "createdAt": "2024-01-15T09:00:00",
         "updatedAt": "2024-01-15T09:00:00"
       }
@@ -321,6 +323,7 @@ query {
     responsavelId
     cafeQuantidade
     cafeDescricao
+    linkMeet
     createdAt
     updatedAt
   }
@@ -747,6 +750,7 @@ query {
     responsavelId
     cafeQuantidade
     cafeDescricao
+    linkMeet
     createdAt
     updatedAt
   }
@@ -808,6 +812,7 @@ const data = await response.json();
         },
         "cafeQuantidade": 10,
         "cafeDescricao": "Café expresso",
+        "linkMeet": "https://meet.google.com/abc-defg-hij",
         "createdAt": "2024-01-15T09:00:00",
         "updatedAt": "2024-01-15T09:00:00"
       }
@@ -981,7 +986,354 @@ const data = await response.json();
 
 ---
 
-### 2.10. Verificar Disponibilidade de um Horário Específico
+### 2.10. Listar Usuários Não-Admin (Para Seleção de Participantes)
+
+**Query:** `usuariosNaoAdmin`
+
+**Autenticação:** Requerida
+
+**Descrição:** Lista todos os usuários que não são administradores. Útil para selecionar participantes de uma reserva.
+
+**Request:**
+```graphql
+query {
+  usuariosNaoAdmin {
+    id
+    nome
+    username
+    email
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        usuariosNaoAdmin {
+          id
+          nome
+          username
+          email
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "usuariosNaoAdmin": [
+      {
+        "id": 2,
+        "nome": "João Silva",
+        "username": "joao",
+        "email": "joao@example.com"
+      },
+      {
+        "id": 3,
+        "nome": "Maria Santos",
+        "username": "maria",
+        "email": "maria@example.com"
+      }
+    ]
+  }
+}
+```
+
+**Nota:** Esta query retorna apenas usuários que **não são administradores** (`admin: false`). Admins não podem ser adicionados como participantes de reservas.
+
+---
+
+### 2.11. Listar Participantes de uma Reserva
+
+**Query:** `participantesReserva`
+
+**Autenticação:** Requerida
+
+**Parâmetros:**
+- `reservaId` (obrigatório) - ID da reserva
+
+**Request:**
+```graphql
+query {
+  participantesReserva(reservaId: 1) {
+    id
+    reservaId
+    usuarioId
+    notificado
+    usuario {
+      id
+      nome
+      username
+      email
+    }
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        participantesReserva(reservaId: 1) {
+          id
+          reservaId
+          usuarioId
+          notificado
+          usuario {
+            id
+            nome
+            username
+            email
+          }
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "participantesReserva": [
+      {
+        "id": 1,
+        "reservaId": 1,
+        "usuarioId": 2,
+        "notificado": false,
+        "usuario": {
+          "id": 2,
+          "nome": "João Silva",
+          "username": "joao",
+          "email": "joao@example.com"
+        },
+        "createdAt": "2024-01-15T10:00:00"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 2.12. Listar Minhas Reservas Convidadas
+
+**Query:** `minhasReservasConvidadas`
+
+**Autenticação:** Requerida
+
+**Descrição:** Lista todas as reservas em que o usuário atual foi convidado como participante.
+
+**Parâmetros:**
+- `apenasNaoNotificadas` (opcional, padrão: false) - Se true, retorna apenas reservas não notificadas
+- `apenasNaoVistas` (opcional, padrão: false) - Se true, retorna apenas reservas não vistas (útil para notificações no sino)
+
+**Request:**
+```graphql
+query {
+  minhasReservasConvidadas(apenasNaoVistas: true) {
+    id
+    reservaId
+    usuarioId
+    notificado
+    visto
+    reserva {
+      id
+      salaId
+      dataHoraInicio
+      dataHoraFim
+      responsavel {
+        id
+        nome
+        username
+      }
+      salaRel {
+        id
+        nome
+        local
+        capacidade
+        descricao
+      }
+      linkMeet
+    }
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        minhasReservasConvidadas(apenasNaoVistas: true) {
+          id
+          reservaId
+          usuarioId
+          notificado
+          visto
+          reserva {
+            id
+            salaId
+            dataHoraInicio
+            dataHoraFim
+            responsavel {
+              id
+              nome
+              username
+            }
+            salaRel {
+              id
+              nome
+              local
+              capacidade
+              descricao
+            }
+            linkMeet
+          }
+          createdAt
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "minhasReservasConvidadas": [
+      {
+        "id": 1,
+        "reservaId": 1,
+        "usuarioId": 2,
+        "notificado": false,
+        "visto": false,
+          "reserva": {
+            "id": 1,
+            "salaId": 1,
+            "dataHoraInicio": "2024-01-15T10:00:00",
+            "dataHoraFim": "2024-01-15T11:00:00",
+            "responsavel": {
+              "id": 1,
+              "nome": "Admin",
+              "username": "admin"
+            },
+            "salaRel": {
+              "id": 1,
+              "nome": "Sala de Reunião A",
+              "local": "Prédio 1 - 2º Andar",
+              "capacidade": 10,
+              "descricao": "Sala equipada com projetor"
+            },
+            "linkMeet": "https://meet.google.com/abc-defg-hij"
+          },
+        "createdAt": "2024-01-15T10:00:00"
+      }
+    ]
+  }
+}
+```
+
+**Uso:** 
+- Use `apenasNaoVistas: true` para mostrar apenas reservas não vistas no sino de notificações
+- Use `apenasNaoNotificadas: true` para retornar apenas reservas que ainda não foram marcadas como notificadas
+- Quando o usuário visualizar uma notificação, chame `marcarReservaComoVista` para marcar como vista
+
+---
+
+### 2.13. Contar Reservas Não Vistas
+
+**Query:** `contarReservasNaoVistas`
+
+**Autenticação:** Requerida
+
+**Descrição:** Conta quantas reservas não vistas o usuário atual tem. Útil para exibir o número de notificações no sino.
+
+**Request:**
+```graphql
+query {
+  contarReservasNaoVistas
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      query {
+        contarReservasNaoVistas
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "contarReservasNaoVistas": 3
+  }
+}
+```
+
+**Uso:** Use esta query para exibir o badge com o número de notificações não vistas no sino. Chame periodicamente (ex: a cada 30 segundos) para atualizar o contador.
+
+---
+
+### 2.14. Verificar Disponibilidade de um Horário Específico
 
 **Query:** `verificarDisponibilidade`
 
@@ -1170,6 +1522,7 @@ mutation {
     responsavelId
     cafeQuantidade
     cafeDescricao
+    linkMeet
     createdAt
     updatedAt
   }
@@ -1197,6 +1550,7 @@ mutation {
     responsavelId
     cafeQuantidade
     cafeDescricao
+    linkMeet
     createdAt
     updatedAt
   }
@@ -1280,6 +1634,7 @@ const data = await response.json();
 - `salaId` (Integer) - ID da sala (preferencial)
 - `cafeQuantidade` (Integer)
 - `cafeDescricao` (String)
+- `linkMeet` (String) - Link da sala de meet (URL, ex: Google Meet, Zoom, etc.)
 
 **Nota:** É recomendado usar `salaId` ao invés de `sala` (string) para garantir consistência e melhor validação de conflitos.
 
@@ -1322,6 +1677,7 @@ mutation {
     responsavelId
     cafeQuantidade
     cafeDescricao
+    linkMeet
     createdAt
     updatedAt
   }
@@ -1416,6 +1772,7 @@ const data = await response.json();
 - `dataHoraFim` (DateTime)
 - `cafeQuantidade` (Integer)
 - `cafeDescricao` (String)
+- `linkMeet` (String) - Link da sala de meet (URL)
 
 **Nota:** Apenas os campos fornecidos serão atualizados. Os demais permanecem inalterados.
 
@@ -1768,6 +2125,265 @@ const data = await response.json();
 
 ---
 
+### 3.8. Adicionar Participante a uma Reserva
+
+**Mutation:** `adicionarParticipante`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas o responsável pela reserva pode adicionar participantes.
+
+**Request:**
+```graphql
+mutation {
+  adicionarParticipante(reservaId: 1, usuarioId: 2) {
+    id
+    reservaId
+    usuarioId
+    notificado
+    usuario {
+      id
+      nome
+      username
+      email
+    }
+    createdAt
+  }
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        adicionarParticipante(reservaId: 1, usuarioId: 2) {
+          id
+          reservaId
+          usuarioId
+          notificado
+          usuario {
+            id
+            nome
+            username
+            email
+          }
+        }
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "adicionarParticipante": {
+      "id": 1,
+      "reservaId": 1,
+      "usuarioId": 2,
+      "notificado": false,
+      "usuario": {
+        "id": 2,
+        "nome": "João Silva",
+        "username": "joao",
+        "email": "joao@example.com"
+      },
+      "createdAt": "2024-01-15T10:00:00"
+    }
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Não foi possível adicionar o participante. Verifique se você é o responsável pela reserva e se o usuário não é admin."` - Sem permissão ou usuário é admin
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Nota:** 
+- Apenas o responsável pela reserva pode adicionar participantes
+- Admins não podem ser adicionados como participantes
+- Se o usuário já for participante, retorna o participante existente
+
+---
+
+### 3.9. Remover Participante de uma Reserva
+
+**Mutation:** `removerParticipante`
+
+**Autenticação:** Requerida
+
+**Permissão:** Apenas o responsável pela reserva pode remover participantes.
+
+**Request:**
+```graphql
+mutation {
+  removerParticipante(reservaId: 1, usuarioId: 2)
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        removerParticipante(reservaId: 1, usuarioId: 2)
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "removerParticipante": true
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Não foi possível remover o participante. Verifique se você é o responsável pela reserva."` - Sem permissão
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+---
+
+### 3.10. Marcar Reserva como Notificada
+
+**Mutation:** `marcarReservaComoNotificada`
+
+**Autenticação:** Requerida
+
+**Descrição:** Marca uma reserva como notificada para o usuário atual. Use quando o usuário visualizar a notificação.
+
+**Request:**
+```graphql
+mutation {
+  marcarReservaComoNotificada(reservaId: 1)
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        marcarReservaComoNotificada(reservaId: 1)
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "marcarReservaComoNotificada": true
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Reserva não encontrada ou você não é participante desta reserva."` - Reserva não existe ou usuário não é participante
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Uso:** Chame esta mutation quando o usuário visualizar a notificação de uma reserva para marcar como notificado.
+
+---
+
+### 3.11. Marcar Reserva como Vista
+
+**Mutation:** `marcarReservaComoVista`
+
+**Autenticação:** Requerida
+
+**Descrição:** Marca uma reserva como vista para o usuário atual. Use quando o usuário visualizar a notificação no sino. Isso remove a reserva da contagem de não vistas.
+
+**Request:**
+```graphql
+mutation {
+  marcarReservaComoVista(reservaId: 1)
+}
+```
+
+**Exemplo HTTP (fetch):**
+```javascript
+const token = localStorage.getItem('token');
+
+const response = await fetch('http://localhost:8000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    query: `
+      mutation {
+        marcarReservaComoVista(reservaId: 1)
+      }
+    `
+  })
+});
+
+const data = await response.json();
+```
+
+**Resposta de Sucesso:**
+```json
+{
+  "data": {
+    "marcarReservaComoVista": true
+  }
+}
+```
+
+**Erros Possíveis:**
+- `"Reserva não encontrada ou você não é participante desta reserva."` - Reserva não existe ou usuário não é participante
+- `"Token de autenticação não fornecido"` - Token ausente
+- `"Token inválido ou expirado"` - Token inválido
+
+**Uso:** 
+- Chame esta mutation quando o usuário clicar em uma notificação no sino
+- Isso marca a reserva como vista e remove da contagem de não vistas
+- Use em conjunto com `contarReservasNaoVistas` para atualizar o badge do sino
+
+---
+
 ## 4. Estrutura de Dados
 
 ### 4.1. Tipo: UsuarioType
@@ -1804,6 +2420,8 @@ interface ReservaType {
   responsavel?: ResponsavelType | null; // Dados do usuário responsável pela reserva
   cafeQuantidade?: number | null;
   cafeDescricao?: string | null;
+  linkMeet?: string | null; // Link da sala de meet (URL)
+  salaRel?: SalaType | null; // Dados completos da sala (quando disponível)
   createdAt: string; // DateTime ISO 8601
   updatedAt: string; // DateTime ISO 8601
 }
@@ -1825,7 +2443,22 @@ interface SalaType {
 }
 ```
 
-### 4.4. Tipo: HorarioDisponivelType
+### 4.4. Tipo: ReservaParticipanteType
+
+```typescript
+interface ReservaParticipanteType {
+  id: number;
+  reservaId: number;
+  usuarioId: number;
+  notificado: boolean; // true se o usuário foi notificado
+  visto: boolean; // true se o usuário já viu a notificação
+  usuario?: ResponsavelType | null; // Dados do usuário participante
+  reserva?: ReservaType | null; // Dados completos da reserva
+  createdAt: string; // DateTime ISO 8601
+}
+```
+
+### 4.5. Tipo: HorarioDisponivelType
 
 ```typescript
 interface HorarioDisponivelType {
@@ -1834,7 +2467,7 @@ interface HorarioDisponivelType {
 }
 ```
 
-### 4.5. Tipo: TokenType
+### 4.6. Tipo: TokenType
 
 ```typescript
 interface TokenType {
@@ -2179,6 +2812,142 @@ export async function atualizarPerfil(token, usuario) {
   `;
   
   return await graphqlRequest(query, { usuario }, token);
+}
+
+// Participantes de Reserva
+export async function listarUsuariosNaoAdmin(token) {
+  const query = `
+    query ListarUsuariosNaoAdmin {
+      usuariosNaoAdmin {
+        id
+        nome
+        username
+        email
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, {}, token);
+}
+
+export async function listarParticipantesReserva(token, reservaId) {
+  const query = `
+    query ListarParticipantesReserva($reservaId: Int!) {
+      participantesReserva(reservaId: $reservaId) {
+        id
+        reservaId
+        usuarioId
+        notificado
+        usuario {
+          id
+          nome
+          username
+          email
+        }
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { reservaId }, token);
+}
+
+export async function listarMinhasReservasConvidadas(token, apenasNaoNotificadas = false, apenasNaoVistas = false) {
+  const query = `
+    query ListarMinhasReservasConvidadas($apenasNaoNotificadas: Boolean!, $apenasNaoVistas: Boolean!) {
+      minhasReservasConvidadas(apenasNaoNotificadas: $apenasNaoNotificadas, apenasNaoVistas: $apenasNaoVistas) {
+        id
+        reservaId
+        usuarioId
+        notificado
+        visto
+        reserva {
+          id
+          salaId
+          dataHoraInicio
+          dataHoraFim
+          responsavel {
+            id
+            nome
+            username
+          }
+          salaRel {
+            id
+            nome
+            local
+            capacidade
+            descricao
+          }
+          linkMeet
+        }
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { apenasNaoNotificadas, apenasNaoVistas }, token);
+}
+
+export async function contarReservasNaoVistas(token) {
+  const query = `
+    query ContarReservasNaoVistas {
+      contarReservasNaoVistas
+    }
+  `;
+  
+  return await graphqlRequest(query, {}, token);
+}
+
+export async function adicionarParticipante(token, reservaId, usuarioId) {
+  const query = `
+    mutation AdicionarParticipante($reservaId: Int!, $usuarioId: Int!) {
+      adicionarParticipante(reservaId: $reservaId, usuarioId: $usuarioId) {
+        id
+        reservaId
+        usuarioId
+        notificado
+        usuario {
+          id
+          nome
+          username
+          email
+        }
+        createdAt
+      }
+    }
+  `;
+  
+  return await graphqlRequest(query, { reservaId, usuarioId }, token);
+}
+
+export async function removerParticipante(token, reservaId, usuarioId) {
+  const query = `
+    mutation RemoverParticipante($reservaId: Int!, $usuarioId: Int!) {
+      removerParticipante(reservaId: $reservaId, usuarioId: $usuarioId)
+    }
+  `;
+  
+  return await graphqlRequest(query, { reservaId, usuarioId }, token);
+}
+
+export async function marcarReservaComoNotificada(token, reservaId) {
+  const query = `
+    mutation MarcarReservaComoNotificada($reservaId: Int!) {
+      marcarReservaComoNotificada(reservaId: $reservaId)
+    }
+  `;
+  
+  return await graphqlRequest(query, { reservaId }, token);
+}
+
+export async function marcarReservaComoVista(token, reservaId) {
+  const query = `
+    mutation MarcarReservaComoVista($reservaId: Int!) {
+      marcarReservaComoVista(reservaId: $reservaId)
+    }
+  `;
+  
+  return await graphqlRequest(query, { reservaId }, token);
 }
 
 // Disponibilidade
@@ -3036,11 +3805,13 @@ Para adicionar o header de autenticação no GraphiQL:
 ```graphql
 mutation {
   criarUsuario(usuario: {
+    nome: "Usuário Teste"
     username: "teste"
     email: "teste@example.com"
     password: "senha123"
   }) {
     id
+    nome
     username
   }
 }
